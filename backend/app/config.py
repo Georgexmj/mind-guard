@@ -1,0 +1,61 @@
+from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+import json
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Application
+    APP_NAME: str = "CogniCare"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = True
+
+    # Security
+    SECRET_KEY: str = "cognitive-secret-key-change-in-production-2026"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Database
+    DATABASE_URL: str = "mysql+pymysql://cognitive_user:cognitive_pass_2026@localhost:3306/cognitive_db"
+
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/1"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
+
+    # MinIO
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "cognitive_admin"
+    MINIO_SECRET_KEY: str = "cognitive_minio_2026"
+    MINIO_BUCKET: str = "cognitive-files"
+    MINIO_SECURE: bool = False
+
+    # CORS
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://servicewechat.com",
+    ]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, ValueError):
+                return [origin.strip() for origin in v.split(",")]
+        return v
+
+
+settings = Settings()

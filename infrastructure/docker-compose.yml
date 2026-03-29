@@ -1,0 +1,181 @@
+name: cognitive_monitoring
+services:
+  # ============================================================
+  # MySQL 数据库
+  # ============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: cognitive_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: cognitive_root_2026
+      MYSQL_DATABASE: cognitive_db
+      MYSQL_USER: cognitive_user
+      MYSQL_PASSWORD: cognitive_pass_2026
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis 缓存与消息队列
+  # ============================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: cognitive_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ============================================================
+  # MinIO 对象存储（音视频/PDF文件）
+  # ============================================================
+  minio:
+    image: minio/minio:latest
+    container_name: cognitive_minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"    # API端口
+      - "9001:9001"    # 控制台端口
+    environment:
+      MINIO_ROOT_USER: cognitive_admin
+      MINIO_ROOT_PASSWORD: cognitive_minio_2026
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================
+  # InfluxDB 时序数据库（行为时序数据）
+  # ============================================================
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: cognitive_influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: cognitive_influx_2026
+      DOCKER_INFLUXDB_INIT_ORG: cognitive-org
+      DOCKER_INFLUXDB_INIT_BUCKET: behavior-data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: cognitive_influx_token_2026
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+  # ============================================================
+  # MongoDB 文档数据库（多模态原始特征JSON）
+  # ============================================================
+  mongodb:
+    image: mongo:6.0
+    container_name: cognitive_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: cognitive_mongo_2026
+      MONGO_INITDB_DATABASE: cognitive_features
+    volumes:
+      - mongodb_data:/data/db
+
+  # ============================================================
+  # FastAPI 后端服务
+  # ============================================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: cognitive_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: mysql+pymysql://cognitive_user:cognitive_pass_2026@mysql:3306/cognitive_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: cognitive_admin
+      MINIO_SECRET_KEY: cognitive_minio_2026
+      MINIO_SECURE: "false"
+      SECRET_KEY: cognitive-secret-key-change-in-production-2026
+      DEBUG: "true"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../backend:/app
+    command: >
+      sh -c "sleep 5 && python -m app.initial_data && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  # ============================================================
+  # Celery Worker（AI分析异步任务）
+  # ============================================================
+  celery_worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: cognitive_celery
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://cognitive_user:cognitive_pass_2026@mysql:3306/cognitive_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: cognitive_admin
+      MINIO_SECRET_KEY: cognitive_minio_2026
+    depends_on:
+      - backend
+      - redis
+    volumes:
+      - ../backend:/app
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+
+  # ============================================================
+  # Web 管理端（React + Nginx）
+  # ============================================================
+  web_admin:
+    build:
+      context: ../web-admin
+      dockerfile: Dockerfile
+    container_name: cognitive_web_admin
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  redis_data:
+  minio_data:
+  influxdb_data:
+  mongodb_data:
+
+networks:
+  default:
+    name: cognitive_network

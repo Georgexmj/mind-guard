@@ -1,0 +1,47 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / local config
+.vscode/
+.claude/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Uni-app / miniprogram local outputs
+unpackage/
+.hbuilderx/
+
+# Logs and temp
+*.log
+tmp/
+temp/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+backend/.env

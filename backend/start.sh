@@ -2,7 +2,7 @@
 set -e
 
 echo "================================================"
-echo "  CogniCare Backend Startup"
+echo "  MindGuard Backend Startup"
 echo "================================================"
 
 echo "Waiting for MySQL to be ready..."

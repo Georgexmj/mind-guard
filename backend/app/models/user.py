@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, Enum, ForeignKey, Text, Date
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship as orm_relationship
 from app.database import Base
 import enum
 
@@ -28,7 +28,7 @@ class Community(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    users = relationship("User", back_populates="community")
+    users = orm_relationship("User", back_populates="community")
 
 
 class User(Base):
@@ -50,14 +50,15 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
-    community = relationship("Community", back_populates="users")
-    assessment_sessions = relationship("AssessmentSession", back_populates="user")
-    elder_relationships = relationship(
+    community = orm_relationship("Community", back_populates="users")
+    assessment_sessions = orm_relationship("AssessmentSession", back_populates="user")
+    notifications = orm_relationship("Notification", back_populates="user")
+    elder_relationships = orm_relationship(
         "UserRelationship",
         foreign_keys="UserRelationship.elder_id",
         back_populates="elder",
     )
-    family_relationships = relationship(
+    family_relationships = orm_relationship(
         "UserRelationship",
         foreign_keys="UserRelationship.family_id",
         back_populates="family_member",
@@ -76,5 +77,5 @@ class UserRelationship(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    elder = relationship("User", foreign_keys=[elder_id], back_populates="elder_relationships")
-    family_member = relationship("User", foreign_keys=[family_id], back_populates="family_relationships")
+    elder = orm_relationship("User", foreign_keys=[elder_id], back_populates="elder_relationships")
+    family_member = orm_relationship("User", foreign_keys=[family_id], back_populates="family_relationships")

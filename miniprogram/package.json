@@ -1,18 +1,30 @@
 {
-  "name": "cognicare-miniprogram",
+  "name": "mindguard-miniprogram",
   "version": "1.0.0",
   "scripts": {
-    "dev:mp-weixin": "uni dev --platform mp-weixin",
-    "build:mp-weixin": "uni build --platform mp-weixin"
+    "dev:mp-weixin": "uni dev -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4020920240930001",
-    "vue": "^3.4.21",
-    "pinia": "^2.1.7"
+    "@dcloudio/uni-mp-weixin": "3.0.0-4020920240930001",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21"
   },
   "devDependencies": {
     "@dcloudio/uni-ui": "^1.4.28",
+    "@dcloudio/vite-plugin-uni": "^3.0.0-4020920240930001",
     "@vue/compiler-sfc": "^3.4.21",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "vite": "^5.4.21"
+  },
+  "overrides": {
+    "@intlify/core-base": "9.14.5",
+    "@intlify/vue-devtools": "9.14.5",
+    "@intlify/message-compiler": "9.14.5",
+    "@intlify/shared": "9.14.5",
+    "esbuild": "0.25.0",
+    "jpeg-js": "0.4.4",
+    "phin": "3.7.1"
   }
 }

@@ -26,6 +26,8 @@ export interface AssessmentSession {
   completed_at?: string
   task_id?: string
   created_at: string
+  pause_deadline?: string
+  is_resumable?: boolean
   user?: User
 }
 
@@ -46,7 +48,43 @@ export interface AssessmentResult {
   mci_probability: number
   ad_probability: number
   mmse_score: number
+  moca_score?: number
+  moca_score_corrected?: number
+  education_correction_applied?: boolean
+  education_correction_points?: number
+  mmse_subscores?: Record<string, number>
+  moca_subscores?: Record<string, number>
+  clinical_report?: {
+    risk_summary?: string
+    scale_interpretation?: {
+      mmse?: string
+      moca?: string
+      education_correction_note?: string
+    }
+    score_snapshot?: {
+      mmse_score?: number
+      moca_score_raw?: number
+      moca_score_corrected?: number
+      confidence_percent?: number
+    }
+    weak_domains?: Array<{
+      domain?: string
+      label?: string
+      score?: number
+    }>
+    clinical_note?: string
+  }
   domain_scores: DomainScores
+  model_confidence?: number
+  modality_quality?: Record<string, number>
+  modality_contributions?: Record<string, number>
+  top_factors?: Array<{
+    feature: string
+    impact: number
+  }>
+  data_quality_flag?: string
+  model_name?: string
+  model_strategy?: string
   recommendation: string
   created_at: string
 }
@@ -70,4 +108,41 @@ export interface PaginatedResponse<T> {
   total: number
   page: number
   page_size: number
+}
+
+export interface NotificationItem {
+  id: number
+  user_id: number
+  session_id?: number
+  notification_type: 'assessment_completed' | 'high_risk_alert' | 'system_message'
+  title: string
+  content: string
+  risk_level?: string
+  payload?: Record<string, unknown>
+  is_read: boolean
+  read_at?: string
+  created_at: string
+}
+
+export interface InterventionRecommendationItem {
+  rank: number
+  code: string
+  title: string
+  category: string
+  target_domains: string[]
+  frequency: string
+  duration_minutes: number
+  rationale: string
+  priority_score: number
+  evidence_level: string
+}
+
+export interface InterventionTop5Recommendation {
+  elder_id: number
+  session_id: number
+  risk_level: string
+  mmse_score?: number
+  moca_score_corrected?: number
+  generated_at: string
+  recommendations: InterventionRecommendationItem[]
 }

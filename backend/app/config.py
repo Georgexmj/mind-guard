@@ -13,9 +13,14 @@ class Settings(BaseSettings):
     )
 
     # Application
-    APP_NAME: str = "CogniCare"
+    APP_NAME: str = "MindGuard"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
+    AI_MODEL_STRATEGY: str = "hybrid"  # rule | deep | hybrid
+    DEEP_MODEL_CHECKPOINT: str = "models/deep_multimodal_fusion.pt"
+    DEEP_MODEL_DEVICE: str = "cpu"  # cpu | cuda
+    DEEP_MODEL_ALLOW_RANDOM_INIT: bool = False
+    DEEP_MODEL_BLEND_ALPHA: float = 0.65  # used by hybrid strategy, deep weight
 
     # Security
     SECRET_KEY: str = "cognitive-secret-key-change-in-production-2026"
@@ -56,6 +61,23 @@ class Settings(BaseSettings):
             except (json.JSONDecodeError, ValueError):
                 return [origin.strip() for origin in v.split(",")]
         return v
+
+    @field_validator("AI_MODEL_STRATEGY", mode="before")
+    @classmethod
+    def validate_ai_model_strategy(cls, v):
+        strategy = str(v).strip().lower()
+        if strategy not in {"rule", "deep", "hybrid"}:
+            return "hybrid"
+        return strategy
+
+    @field_validator("DEEP_MODEL_BLEND_ALPHA", mode="before")
+    @classmethod
+    def validate_blend_alpha(cls, v):
+        try:
+            alpha = float(v)
+        except (TypeError, ValueError):
+            return 0.65
+        return max(0.0, min(1.0, alpha))
 
 
 settings = Settings()

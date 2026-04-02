@@ -3,12 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, users, assessments, questions, communities, dashboard, interventions
+from app.routers import auth, users, assessments, questions, communities, dashboard, interventions, notifications
 
 # Import all models to ensure they are registered with SQLAlchemy metadata
 import app.models.user  # noqa: F401
 import app.models.assessment  # noqa: F401
 import app.models.intervention  # noqa: F401
+import app.models.notification  # noqa: F401
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -40,6 +41,7 @@ app.include_router(questions.router)
 app.include_router(communities.router)
 app.include_router(dashboard.router)
 app.include_router(interventions.router)
+app.include_router(notifications.router)
 
 
 @app.on_event("startup")
@@ -75,5 +77,6 @@ def root():
             "assessments": "/api/v1/assessments",
             "questions": "/api/v1/questions",
             "communities": "/api/v1/communities",
+            "notifications": "/api/v1/notifications",
         },
     }

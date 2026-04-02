@@ -76,7 +76,7 @@
 ```
 后端：      Python 3.11 + FastAPI + Celery + SQLAlchemy + Alembic
 AI/ML：     PyTorch 2.1 + Transformers + scikit-learn + LightGBM
-语音处理：  Whisper large-v3 + OpenSMILE + Librosa + jieba + chinese-BERT
+语音处理：  FunASR Paraformer + OpenSMILE + Librosa + jieba + chinese-BERT
 视觉处理：  MediaPipe + OpenCV + GazeTracking + FER2013
 前端Web：   React 18 + TypeScript + Ant Design 5 + ECharts 5
 移动端：    UniApp + Vue 3 + Pinia + 微信原生API（wx.getRecorderManager/wx.getTextToSpeech）
@@ -147,3 +147,19 @@ npm install
 ---
 
 *项目持续开发中 | 全国大学生软件创新大赛参赛作品*
+
+## ��ǰ Docker �˿�ӳ���
+
+> ����Ϊ��Ŀ��ǰĬ�� Docker �����˿�ӳ�䣨�� 30000 ��ʼ����
+
+| ���� | Docker �����˿� | �����ڲ��˿� | ����˵�� |
+|------|------------------|--------------|----------|
+| Web Admin | 30000 | 80 | http://localhost:30000 |
+| FastAPI Backend | 30001 | 8000 | http://localhost:30001/docs |
+| MySQL | 30002 | 3306 | ���������� `localhost:30002` |
+| Redis | 30003 | 6379 | ���������� `localhost:30003` |
+| MinIO API | 30004 | 9000 | S3 API �˵� |
+| MinIO Console | 30005 | 9001 | http://localhost:30005 |
+| InfluxDB | 30006 | 8086 | http://localhost:30006 |
+| MongoDB | 30007 | 27017 | ���������� `localhost:30007` |
+

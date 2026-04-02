@@ -1,11 +1,11 @@
-name: cognitive_monitoring
+name: mindguard
 services:
   # ============================================================
   # MySQL 数据库
   # ============================================================
   mysql:
-    image: mysql:8.0
-    container_name: cognitive_mysql
+    image: mysql:8.4
+    container_name: mindguard_mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: cognitive_root_2026
@@ -28,8 +28,8 @@ services:
   # Redis 缓存与消息队列
   # ============================================================
   redis:
-    image: redis:7.2-alpine
-    container_name: cognitive_redis
+    image: redis:8-alpine
+    container_name: mindguard_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -47,7 +47,7 @@ services:
   # ============================================================
   minio:
     image: minio/minio:latest
-    container_name: cognitive_minio
+    container_name: mindguard_minio
     restart: unless-stopped
     ports:
       - "9000:9000"    # API端口
@@ -69,7 +69,7 @@ services:
   # ============================================================
   influxdb:
     image: influxdb:2.7-alpine
-    container_name: cognitive_influxdb
+    container_name: mindguard_influxdb
     restart: unless-stopped
     ports:
       - "8086:8086"
@@ -88,7 +88,7 @@ services:
   # ============================================================
   mongodb:
     image: mongo:6.0
-    container_name: cognitive_mongodb
+    container_name: mindguard_mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
@@ -106,7 +106,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: cognitive_backend
+    container_name: mindguard_backend
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -138,7 +138,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: cognitive_celery
+    container_name: mindguard_celery
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql+pymysql://cognitive_user:cognitive_pass_2026@mysql:3306/cognitive_db
@@ -153,7 +153,7 @@ services:
       - redis
     volumes:
       - ../backend:/app
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2 -Q ai_analysis,celery
 
   # ============================================================
   # Web 管理端（React + Nginx）
@@ -162,7 +162,7 @@ services:
     build:
       context: ../web-admin
       dockerfile: Dockerfile
-    container_name: cognitive_web_admin
+    container_name: mindguard_web_admin
     restart: unless-stopped
     ports:
       - "80:80"
@@ -178,4 +178,4 @@ volumes:
 
 networks:
   default:
-    name: cognitive_network
+    name: mindguard_network

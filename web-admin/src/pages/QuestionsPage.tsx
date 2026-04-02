@@ -1,13 +1,40 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
-  Card, Table, Button, Space, Typography, Tag, Modal, Form,
-  Input, Select, InputNumber, Row, Col, Tooltip, Switch, message,
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  ExclamationCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { getQuestions, createQuestion } from '../services/api'
+
+import {
+  createQuestion,
+  deleteQuestion,
+  exportQuestionsCsv,
+  getQuestions,
+  updateQuestion,
+} from '../services/api'
+import { useAuthStore } from '../store/auth'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -15,11 +42,24 @@ const { TextArea } = Input
 interface Question {
   id: number
   domain: string
-  q_type: string
+  q_type: 'choice' | 'voice' | 'drawing' | 'scale' | string
   content: string
   options?: string[]
+  correct_answer?: string
   difficulty: number
+  irt_a?: number
+  irt_b?: number
   is_active?: boolean
+}
+
+interface QuestionFormValues {
+  domain: string
+  q_type: string
+  content: string
+  correct_answer?: string
+  difficulty?: number
+  is_active?: boolean
+  [key: string]: any
 }
 
 const DOMAIN_OPTIONS = [
@@ -38,78 +78,183 @@ const TYPE_OPTIONS = [
   { label: '量表题', value: 'scale' },
 ]
 
-const domainColors: Record<string, string> = {
-  memory: 'purple', orientation: 'blue', attention: 'orange',
-  language: 'green', visuospatial: 'cyan', executive: 'red',
+const DOMAIN_COLORS: Record<string, string> = {
+  memory: 'purple',
+  orientation: 'blue',
+  attention: 'orange',
+  language: 'green',
+  visuospatial: 'cyan',
+  executive: 'red',
 }
 
-const typeColors: Record<string, string> = {
-  choice: 'blue', voice: 'pink', drawing: 'geekblue', scale: 'gold',
+const TYPE_COLORS: Record<string, string> = {
+  choice: 'blue',
+  voice: 'magenta',
+  drawing: 'geekblue',
+  scale: 'gold',
 }
-
-const MOCK_QUESTIONS: Question[] = [
-  { id: 1, domain: 'memory', q_type: 'choice', content: '请记住以下三个词：苹果、汽车、诚实。现在，请问您刚才记忆的第一个词是什么？', options: ['苹果', '香蕉', '桌子', '书本'], difficulty: 0.3, is_active: true },
-  { id: 2, domain: 'memory', q_type: 'choice', content: '几分钟前您记忆了三个词。请问第二个词是什么？', options: ['汽车', '飞机', '自行车', '火车'], difficulty: 0.5, is_active: true },
-  { id: 3, domain: 'memory', q_type: 'voice', content: '请回忆并说出之前记忆的第三个词。', difficulty: 0.6, is_active: true },
-  { id: 4, domain: 'orientation', q_type: 'choice', content: '现在是哪一年？', options: ['2024年', '2025年', '2026年', '2023年'], difficulty: 0.2, is_active: true },
-  { id: 5, domain: 'orientation', q_type: 'voice', content: '请问您现在在哪个城市？', difficulty: 0.2, is_active: true },
-  { id: 6, domain: 'attention', q_type: 'choice', content: '请从100开始，每次减7，第一次结果是多少？', options: ['93', '97', '91', '95'], difficulty: 0.5, is_active: true },
-  { id: 7, domain: 'language', q_type: 'voice', content: '请用一句话描述：一位老奶奶在公园里喂鸽子。', difficulty: 0.5, is_active: true },
-  { id: 8, domain: 'visuospatial', q_type: 'drawing', content: '请画一个时钟，显示时间为11点10分。', difficulty: 0.7, is_active: true },
-  { id: 9, domain: 'executive', q_type: 'voice', content: '如果您在街上发现了一封已贴好邮票的信，您会怎么做？', difficulty: 0.6, is_active: true },
-  { id: 10, domain: 'attention', q_type: 'scale', content: '请评估您在过去一周内注意力集中程度（0=完全无法集中，10=完全可以集中）。', difficulty: 0.4, is_active: true },
-]
 
 export default function QuestionsPage() {
-  const [questions, setQuestions] = useState<Question[]>(MOCK_QUESTIONS)
-  const [loading, setLoading] = useState(false)
-  const [domainFilter, setDomainFilter] = useState<string | undefined>()
-  const [typeFilter, setTypeFilter] = useState<string | undefined>()
-  const [modalOpen, setModalOpen] = useState(false)
-  const [optionCount, setOptionCount] = useState(4)
-  const [form] = Form.useForm()
+  const user = useAuthStore((state) => state.user)
+  const canManageQuestions = user?.role === 'admin'
 
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const [domainFilter, setDomainFilter] = useState<string>()
+  const [typeFilter, setTypeFilter] = useState<string>()
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+  const [optionCount, setOptionCount] = useState(4)
+
+  const [form] = Form.useForm<QuestionFormValues>()
   const qType = Form.useWatch('q_type', form)
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getQuestions({ domain: domainFilter, q_type: typeFilter })
-      if (Array.isArray(res) && res.length > 0) setQuestions(res as Question[])
+      const data = await getQuestions({
+        domain: domainFilter,
+        q_type: typeFilter,
+        page_size: 200,
+      })
+      setQuestions((Array.isArray(data) ? data : []) as Question[])
     } catch {
-      // keep mock data
+      message.error('题库加载失败，请稍后重试')
     } finally {
       setLoading(false)
     }
   }, [domainFilter, typeFilter])
 
-  useEffect(() => { fetchQuestions() }, [fetchQuestions])
+  useEffect(() => {
+    fetchQuestions()
+  }, [fetchQuestions])
 
-  const handleCreate = async () => {
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const { blob, filename } = await exportQuestionsCsv({
+        domain: domainFilter,
+        q_type: typeFilter,
+      })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename || 'mindguard_questions.csv'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      message.success('导出成功')
+    } catch {
+      message.error('导出失败，请稍后重试')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const openCreateModal = () => {
+    setEditingQuestion(null)
+    setOptionCount(4)
+    form.resetFields()
+    form.setFieldsValue({
+      q_type: 'choice',
+      difficulty: 0.5,
+      is_active: true,
+    })
+    setModalOpen(true)
+  }
+
+  const openEditModal = (question: Question) => {
+    setEditingQuestion(question)
+    const nextOptionCount = Math.max(question.options?.length || 0, 4)
+    setOptionCount(nextOptionCount)
+
+    const initialValues: QuestionFormValues = {
+      domain: question.domain,
+      q_type: question.q_type,
+      content: question.content,
+      correct_answer: question.correct_answer,
+      difficulty: question.difficulty,
+      is_active: question.is_active ?? true,
+    }
+
+    for (let i = 0; i < nextOptionCount; i += 1) {
+      initialValues[`option_${i}`] = question.options?.[i] || ''
+    }
+
+    form.setFieldsValue(initialValues)
+    setModalOpen(true)
+  }
+
+  const buildChoiceOptions = (values: QuestionFormValues): string[] => {
+    return Array.from({ length: optionCount }, (_, i) => values[`option_${i}`])
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean)
+  }
+
+  const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      // Build options array from option_0..option_N fields
-      const options = qType === 'choice'
-        ? Array.from({ length: optionCount }, (_, i) => values[`option_${i}`]).filter(Boolean)
-        : undefined
-      const payload = {
+      const isChoice = values.q_type === 'choice'
+      const options = isChoice ? buildChoiceOptions(values) : undefined
+
+      if (isChoice && (!options || options.length < 2)) {
+        message.error('选择题至少需要 2 个选项')
+        return
+      }
+
+      const payload: Record<string, unknown> = {
         domain: values.domain,
         q_type: values.q_type,
-        content: values.content,
-        options,
-        correct_answer: values.correct_answer,
+        content: values.content?.trim(),
         difficulty: values.difficulty ?? 0.5,
-        irt_a: 1.0,
-        irt_b: 0.0,
+        is_active: values.is_active ?? true,
+        options,
+        correct_answer: isChoice ? values.correct_answer?.trim() : undefined,
       }
-      await createQuestion(payload)
-      message.success('题目创建成功')
+
+      if (editingQuestion) {
+        await updateQuestion(editingQuestion.id, payload)
+        message.success('题目更新成功')
+      } else {
+        await createQuestion({
+          ...payload,
+          irt_a: 1.0,
+          irt_b: 0.0,
+        })
+        message.success('题目创建成功')
+      }
+
       setModalOpen(false)
+      setEditingQuestion(null)
       form.resetFields()
       fetchQuestions()
     } catch {
-      // keep modal open on error
+      message.error('保存失败，请检查输入后重试')
     }
+  }
+
+  const handleDelete = (question: Question) => {
+    Modal.confirm({
+      title: '删除题目',
+      icon: <ExclamationCircleOutlined />,
+      content: `确认停用题目「${question.content.slice(0, 24)}${question.content.length > 24 ? '...' : ''}」吗？`,
+      okText: '确认删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deleteQuestion(question.id)
+          message.success('题目已停用')
+          fetchQuestions()
+        } catch {
+          message.error('删除失败，请稍后重试')
+        }
+      },
+    })
   }
 
   const columns: ColumnsType<Question> = [
@@ -118,39 +263,53 @@ export default function QuestionsPage() {
       dataIndex: 'content',
       key: 'content',
       ellipsis: true,
-      render: (text) => <Tooltip title={text}><Text style={{ maxWidth: 340, display: 'block' }} ellipsis>{text}</Text></Tooltip>,
+      render: (value: string) => (
+        <Tooltip title={value}>
+          <Text style={{ maxWidth: 380, display: 'block' }} ellipsis>
+            {value}
+          </Text>
+        </Tooltip>
+      ),
     },
     {
       title: '认知域',
       dataIndex: 'domain',
       key: 'domain',
-      width: 100,
+      width: 110,
       align: 'center',
-      render: (d) => {
-        const opt = DOMAIN_OPTIONS.find((o) => o.value === d)
-        return <Tag color={domainColors[d] || 'default'} style={{ borderRadius: 10 }}>{opt?.label || d}</Tag>
+      render: (value: string) => {
+        const label = DOMAIN_OPTIONS.find((item) => item.value === value)?.label || value
+        return (
+          <Tag color={DOMAIN_COLORS[value] || 'default'} style={{ borderRadius: 10 }}>
+            {label}
+          </Tag>
+        )
       },
     },
     {
       title: '题型',
       dataIndex: 'q_type',
       key: 'q_type',
-      width: 90,
+      width: 100,
       align: 'center',
-      render: (t) => {
-        const opt = TYPE_OPTIONS.find((o) => o.value === t)
-        return <Tag color={typeColors[t] || 'default'} style={{ borderRadius: 10 }}>{opt?.label || t}</Tag>
+      render: (value: string) => {
+        const label = TYPE_OPTIONS.find((item) => item.value === value)?.label || value
+        return (
+          <Tag color={TYPE_COLORS[value] || 'default'} style={{ borderRadius: 10 }}>
+            {label}
+          </Tag>
+        )
       },
     },
     {
       title: '难度',
       dataIndex: 'difficulty',
       key: 'difficulty',
-      width: 80,
+      width: 90,
       align: 'center',
-      render: (d) => (
-        <Tag color={d >= 0.7 ? 'red' : d >= 0.4 ? 'orange' : 'green'} style={{ borderRadius: 10 }}>
-          {d >= 0.7 ? '难' : d >= 0.4 ? '中' : '易'}
+      render: (value: number) => (
+        <Tag color={value >= 0.7 ? 'red' : value >= 0.4 ? 'orange' : 'green'} style={{ borderRadius: 10 }}>
+          {value >= 0.7 ? '难' : value >= 0.4 ? '中' : '易'}
         </Tag>
       ),
     },
@@ -158,23 +317,44 @@ export default function QuestionsPage() {
       title: '启用',
       dataIndex: 'is_active',
       key: 'is_active',
-      width: 70,
+      width: 80,
       align: 'center',
-      render: (active) => <Switch checked={active ?? true} size="small" disabled />,
+      render: (value?: boolean) => <Switch checked={value ?? true} size="small" disabled />,
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      align: 'center',
+      render: (_, record) => (
+        <Space size={6}>
+          {canManageQuestions && (
+            <Tooltip title="编辑">
+              <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
+            </Tooltip>
+          )}
+          {canManageQuestions && (
+            <Tooltip title="删除">
+              <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
   ]
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>题库管理</Title>
-        <Text type="secondary">共 {questions.length} 道题目（含各认知域）</Text>
+        <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+          题库管理
+        </Title>
+        <Text type="secondary">
+          {canManageQuestions ? '管理员可增删改查，医生仅查看' : '当前角色仅查看题库'}
+        </Text>
       </div>
 
-      <Card
-        style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: '20px 24px' }}
-      >
+      <Card style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '20px 24px' }}>
         <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={6}>
             <Select
@@ -199,71 +379,109 @@ export default function QuestionsPage() {
           <Col flex="auto" />
           <Col>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={fetchQuestions}>刷新</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setModalOpen(true) }}>
-                新增题目
+              <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+                导出CSV
               </Button>
+              <Button icon={<ReloadOutlined />} onClick={fetchQuestions}>
+                刷新
+              </Button>
+              {canManageQuestions && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+                  新增题目
+                </Button>
+              )}
             </Space>
           </Col>
         </Row>
 
         <Table
+          rowKey="id"
           columns={columns}
           dataSource={questions}
-          rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 15, showTotal: (t) => `共 ${t} 道题` }}
+          pagination={{ pageSize: 15, showTotal: (total) => `共 ${total} 道题` }}
         />
       </Card>
 
-      <Modal
-        title="新增题目"
-        open={modalOpen}
-        onOk={handleCreate}
-        onCancel={() => setModalOpen(false)}
-        okText="创建"
-        cancelText="取消"
-        width={640}
-        destroyOnClose
-      >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="domain" label="认知域" rules={[{ required: true }]}>
-                <Select options={DOMAIN_OPTIONS} placeholder="选择认知域" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="q_type" label="题型" rules={[{ required: true }]}>
-                <Select options={TYPE_OPTIONS} placeholder="选择题型" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="content" label="题目内容" rules={[{ required: true, message: '请输入题目内容' }]}>
-            <TextArea rows={3} placeholder="输入题目文本..." />
-          </Form.Item>
-          {qType === 'choice' && (
-            <>
-              <Form.Item label={`选项（${optionCount} 个）`}>
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {Array.from({ length: optionCount }, (_, i) => (
-                    <Form.Item key={i} name={`option_${i}`} noStyle>
-                      <Input prefix={<Text style={{ color: '#999' }}>{String.fromCharCode(65 + i)}.</Text>} placeholder={`选项 ${String.fromCharCode(65 + i)}`} />
-                    </Form.Item>
-                  ))}
-                </Space>
-                <Button type="dashed" size="small" style={{ marginTop: 8 }} onClick={() => setOptionCount((n) => Math.min(n + 1, 6))}>+ 添加选项</Button>
-              </Form.Item>
-              <Form.Item name="correct_answer" label="正确答案">
-                <Input placeholder="输入正确答案的文字内容" />
-              </Form.Item>
-            </>
-          )}
-          <Form.Item name="difficulty" label="难度系数">
-            <InputNumber min={0} max={1} step={0.1} style={{ width: '100%' }} placeholder="0.0 ~ 1.0（0=最易，1=最难）" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {canManageQuestions && (
+        <Modal
+          open={modalOpen}
+          title={editingQuestion ? '编辑题目' : '新增题目'}
+          okText={editingQuestion ? '保存' : '创建'}
+          cancelText="取消"
+          onOk={handleSubmit}
+          onCancel={() => {
+            setModalOpen(false)
+            setEditingQuestion(null)
+          }}
+          width={680}
+          destroyOnClose
+        >
+          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="domain" label="认知域" rules={[{ required: true, message: '请选择认知域' }]}>
+                  <Select options={DOMAIN_OPTIONS} placeholder="请选择认知域" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="q_type" label="题型" rules={[{ required: true, message: '请选择题型' }]}>
+                  <Select options={TYPE_OPTIONS} placeholder="请选择题型" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              name="content"
+              label="题目内容"
+              rules={[{ required: true, message: '请输入题目内容' }]}
+            >
+              <TextArea rows={3} placeholder="请输入题目文本" />
+            </Form.Item>
+
+            {qType === 'choice' && (
+              <>
+                <Form.Item label={`选项（${optionCount} 个）`}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {Array.from({ length: optionCount }, (_, i) => (
+                      <Form.Item
+                        key={i}
+                        name={`option_${i}`}
+                        rules={i < 2 ? [{ required: true, message: '前两个选项必填' }] : undefined}
+                        style={{ marginBottom: 8 }}
+                      >
+                        <Input
+                          prefix={<Text style={{ color: '#999' }}>{String.fromCharCode(65 + i)}.</Text>}
+                          placeholder={`选项 ${String.fromCharCode(65 + i)}`}
+                        />
+                      </Form.Item>
+                    ))}
+                  </Space>
+                  <Button
+                    type="dashed"
+                    size="small"
+                    style={{ marginTop: 8 }}
+                    onClick={() => setOptionCount((n) => Math.min(n + 1, 8))}
+                  >
+                    + 添加选项
+                  </Button>
+                </Form.Item>
+                <Form.Item name="correct_answer" label="正确答案">
+                  <Input placeholder="请输入正确答案文本（需与选项内容一致）" />
+                </Form.Item>
+              </>
+            )}
+
+            <Form.Item name="difficulty" label="难度系数">
+              <InputNumber min={0} max={1} step={0.1} style={{ width: '100%' }} />
+            </Form.Item>
+
+            <Form.Item name="is_active" label="是否启用" valuePropName="checked" initialValue={true}>
+              <Switch />
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
     </div>
   )
 }

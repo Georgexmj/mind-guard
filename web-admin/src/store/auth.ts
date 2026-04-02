@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'cognicare-auth',
+      name: 'mindguard-auth',
       partialize: (state) => ({ user: state.user, token: state.token }),
     }
   )

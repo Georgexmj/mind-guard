@@ -14,8 +14,24 @@ import { UserOutlined, LockOutlined, MedicineBoxOutlined } from '@ant-design/ico
 import { useNavigate } from 'react-router-dom'
 import { login } from '../services/api'
 import { useAuthStore } from '../store/auth'
+import type { User } from '../types'
 
 const { Title, Text, Paragraph } = Typography
+
+type UserRole = User['role']
+
+const getDefaultRouteByRole = (role?: UserRole) => {
+  switch (role) {
+    case 'admin':
+    case 'doctor':
+      return '/dashboard'
+    case 'elder':
+    case 'family':
+      return '/assessments'
+    default:
+      return '/dashboard'
+  }
+}
 
 interface LoginForm {
   phone: string
@@ -35,7 +51,7 @@ export default function LoginPage() {
       const response = await login(values.phone, values.password)
       setAuth(response.user, response.access_token)
       messageApi.success('登录成功，欢迎回来！')
-      setTimeout(() => navigate('/dashboard'), 500)
+      setTimeout(() => navigate(getDefaultRouteByRole(response.user?.role)), 500)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } }
       messageApi.error(
@@ -47,7 +63,7 @@ export default function LoginPage() {
   }
 
   const fillDemo = () => {
-    form.setFieldsValue({ phone: '13800138000', password: 'admin123456' })
+    form.setFieldsValue({ phone: '13800000001', password: 'admin123' })
   }
 
   return (
@@ -105,7 +121,7 @@ export default function LoginPage() {
             <MedicineBoxOutlined style={{ fontSize: 36, color: '#fff' }} />
           </div>
           <Title level={2} style={{ margin: 0, color: '#1a1a2e', fontWeight: 700 }}>
-            CogniCare
+            MindGuard
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
             认知障碍筛查系统 · 管理平台
@@ -178,11 +194,11 @@ export default function LoginPage() {
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <Paragraph style={{ margin: 0, fontSize: 13 }}>
                 <Text type="secondary">手机号：</Text>
-                <Text strong copyable>13800138000</Text>
+                <Text strong copyable>13800000001</Text>
               </Paragraph>
               <Paragraph style={{ margin: 0, fontSize: 13 }}>
                 <Text type="secondary">密　码：</Text>
-                <Text strong copyable>admin123456</Text>
+                <Text strong copyable>admin123</Text>
               </Paragraph>
               <Button
                 size="small"

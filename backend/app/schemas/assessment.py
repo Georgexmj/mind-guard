@@ -12,7 +12,11 @@ class QuestionOut(BaseModel):
     q_type: QuestionType
     content: str
     options: Optional[List[str]] = None
+    correct_answer: Optional[str] = None
     difficulty: float
+    irt_a: float
+    irt_b: float
+    is_active: bool
 
 
 class QuestionCreate(BaseModel):
@@ -24,6 +28,18 @@ class QuestionCreate(BaseModel):
     difficulty: float = 0.5
     irt_a: float = 1.0
     irt_b: float = 0.0
+
+
+class QuestionUpdate(BaseModel):
+    domain: Optional[QuestionDomain] = None
+    q_type: Optional[QuestionType] = None
+    content: Optional[str] = None
+    options: Optional[List[str]] = None
+    correct_answer: Optional[str] = None
+    difficulty: Optional[float] = None
+    irt_a: Optional[float] = None
+    irt_b: Optional[float] = None
+    is_active: Optional[bool] = None
 
 
 class SessionCreate(BaseModel):
@@ -41,6 +57,8 @@ class SessionOut(BaseModel):
     completed_at: Optional[datetime] = None
     task_id: Optional[str] = None
     created_at: datetime
+    pause_deadline: Optional[datetime] = None
+    is_resumable: Optional[bool] = None
 
 
 class AnswerSubmit(BaseModel):
@@ -74,7 +92,23 @@ class ResultOut(BaseModel):
     mci_probability: float
     ad_probability: float
     mmse_score: Optional[float] = None
+    moca_score: Optional[float] = None
+    moca_score_corrected: Optional[float] = None
+    education_correction_applied: Optional[bool] = None
+    education_correction_points: Optional[float] = None
+    mmse_subscores: Optional[Dict[str, float]] = None
+    moca_subscores: Optional[Dict[str, float]] = None
+    clinical_report: Optional[Dict[str, Any]] = None
     domain_scores: Dict[str, float]
+    model_confidence: Optional[float] = None
+    modality_quality: Optional[Dict[str, float]] = None
+    modality_contributions: Optional[Dict[str, float]] = None
+    top_factors: Optional[List[Dict[str, Any]]] = None
+    data_quality_flag: Optional[str] = None
+    model_name: Optional[str] = None
+    model_strategy: Optional[str] = None
+    engine_info: Optional[Dict[str, Any]] = None
+    attention_matrix: Optional[List[List[float]]] = None
     shap_values: Optional[Dict[str, Any]] = None
     recommendation: Optional[str] = None
     created_at: datetime
@@ -84,3 +118,11 @@ class TaskStatusOut(BaseModel):
     task_id: str
     status: str
     result: Optional[Dict[str, Any]] = None
+
+
+class PauseResumeOut(BaseModel):
+    session_id: int
+    status: SessionStatus
+    message: str
+    pause_deadline: Optional[datetime] = None
+    is_resumable: Optional[bool] = None

@@ -1,4 +1,4 @@
-# CogniCare — 快速启动指南
+# MindGuard — 快速启动指南
 
 本文档说明如何在本地快速跑通完整系统（后端 + Web管理端 + 数据库基础设施）。
 
@@ -32,9 +32,9 @@ docker compose logs -f backend
 ```
 
 启动完成后访问：
-- **Web 管理端**：http://localhost （admin/doctor 账号）
-- **后端 API 文档**：http://localhost:8000/docs （Swagger UI）
-- **MinIO 控制台**：http://localhost:9001 （cognitive_admin / cognitive_minio_2026）
+- **Web 管理端**：http://localhost:30000 （admin/doctor 账号）
+- **后端 API 文档**：http://localhost:30001/docs （Swagger UI）
+- **MinIO 控制台**：http://localhost:30005 （cognitive_admin / cognitive_minio_2026）
 
 停止所有服务：
 ```bash
@@ -131,14 +131,14 @@ npm run dev
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| Web Admin | 80 (Docker) / 5173 (Dev) | React 管理后台 |
-| FastAPI | 8000 | REST API + Swagger |
-| MySQL | 3306 | 主数据库 |
-| Redis | 6379 | 缓存 + 消息队列 |
-| MinIO API | 9000 | 文件存储 |
-| MinIO Console | 9001 | 存储管理界面 |
-| InfluxDB | 8086 | 时序数据库 |
-| MongoDB | 27017 | 特征存储 |
+| Web Admin | 30000 (Docker) / 5173 (Dev) | React 管理后台 |
+| FastAPI | 30001 (Docker) / 8000 (Dev) | REST API + Swagger |
+| MySQL | 30002 (Docker 映射) | 主数据库 |
+| Redis | 30003 (Docker 映射) | 缓存 + 消息队列 |
+| MinIO API | 30004 (Docker 映射) | 文件存储 |
+| MinIO Console | 30005 (Docker 映射) | 存储管理界面 |
+| InfluxDB | 30006 (Docker 映射) | 时序数据库 |
+| MongoDB | 30007 (Docker 映射) | 特征存储 |
 
 ---
 
@@ -152,7 +152,7 @@ npm run dev
    - 查看评估报告（六维雷达图 + 风险评级）
 
 2. **Web Admin（医生/管理员角色）**：
-   - 用 13800000002 / doctor123 登录 http://localhost:5173
+   - 用 13800000002 / doctor123 登录 http://localhost:30000
    - 仪表盘查看整体统计
    - 老人管理 → 查看老人列表
    - 评估管理 → 查看最新评估结果（包含认知雷达图）
@@ -163,9 +163,9 @@ npm run dev
 
 **Q: docker compose up 报错 "port already in use"**
 ```bash
-# 检查占用端口的进程（以3306为例）
-netstat -ano | findstr 3306   # Windows
-lsof -i :3306                 # Mac/Linux
+# 检查占用端口的进程（以30002为例）
+netstat -ano | findstr 30002   # Windows
+lsof -i :30002                 # Mac/Linux
 # 停止冲突进程后重试
 ```
 
@@ -178,7 +178,7 @@ docker compose logs mysql | tail -20
 
 **Q: 小程序报 "request:fail url not in domain list"**
 - 微信开发者工具 → 详情 → 本地设置 → 勾选"不校验合法域名"
-- 或将 `http://localhost:8000` 添加到小程序后台的 request 合法域名
+- 或将 `http://localhost:30001`（Docker）或 `http://localhost:8000`（本地开发）添加到小程序后台的 request 合法域名
 
 **Q: Celery Worker 连不上 Redis**
 ```bash
@@ -191,3 +191,25 @@ redis-cli ping  # 应返回 PONG
 ---
 
 *文档版本：v1.0 | 2026-03*
+
+---
+
+## 深度多模态模型开关（新增）
+
+后端新增三种 AI 推理策略（通过环境变量配置）：
+
+```env
+AI_MODEL_STRATEGY=rule      # 仅规则模型（稳定兜底）
+AI_MODEL_STRATEGY=deep      # 仅深度模型（需 checkpoint）
+AI_MODEL_STRATEGY=hybrid    # 规则 + 深度融合（推荐）
+
+DEEP_MODEL_CHECKPOINT=models/deep_multimodal_fusion.pt
+DEEP_MODEL_DEVICE=cpu
+DEEP_MODEL_ALLOW_RANDOM_INIT=false
+DEEP_MODEL_BLEND_ALPHA=0.65
+```
+
+说明：
+- 当 `deep/hybrid` 但 checkpoint 不存在时，系统会自动回退到规则模型，评估流程不中断。
+- 训练脚本：`backend/scripts/train_deep_multimodal.py`
+- 完整改造文档：`docs/开发/深度多模态改造说明.md`

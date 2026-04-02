@@ -8,7 +8,24 @@ import AssessmentsPage from './pages/AssessmentsPage'
 import AssessmentDetailPage from './pages/AssessmentDetailPage'
 import InterventionsPage from './pages/InterventionsPage'
 import QuestionsPage from './pages/QuestionsPage'
+import NotificationsPage from './pages/NotificationsPage'
 import Layout from './components/Layout'
+import type { User } from './types'
+
+type UserRole = User['role']
+
+const getDefaultRouteByRole = (role?: UserRole) => {
+  switch (role) {
+    case 'admin':
+    case 'doctor':
+      return '/dashboard'
+    case 'elder':
+    case 'family':
+      return '/assessments'
+    default:
+      return '/login'
+  }
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -16,6 +33,28 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
   return <>{children}</>
+}
+
+function RoleRoute({
+  allowedRoles,
+  children,
+}: {
+  allowedRoles: UserRole[]
+  children: React.ReactNode
+}) {
+  const user = useAuthStore((state) => state.user)
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to={getDefaultRouteByRole(user.role)} replace />
+  }
+  return <>{children}</>
+}
+
+function DefaultIndexRedirect() {
+  const user = useAuthStore((state) => state.user)
+  return <Navigate to={getDefaultRouteByRole(user?.role)} replace />
 }
 
 function App() {
@@ -31,16 +70,73 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="elders" element={<EldersPage />} />
-          <Route path="elders/:id" element={<ElderDetailPage />} />
-          <Route path="assessments" element={<AssessmentsPage />} />
-          <Route path="assessments/:sessionId" element={<AssessmentDetailPage />} />
-          <Route path="interventions" element={<InterventionsPage />} />
-          <Route path="questions" element={<QuestionsPage />} />
+          <Route index element={<DefaultIndexRedirect />} />
+          <Route
+            path="dashboard"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor']}>
+                <DashboardPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="elders"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor']}>
+                <EldersPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="elders/:id"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor']}>
+                <ElderDetailPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="assessments"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor', 'elder', 'family']}>
+                <AssessmentsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="assessments/:sessionId"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor', 'elder', 'family']}>
+                <AssessmentDetailPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="interventions"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor', 'elder', 'family']}>
+                <InterventionsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="questions"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor']}>
+                <QuestionsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="notifications"
+            element={
+              <RoleRoute allowedRoles={['admin', 'doctor', 'elder', 'family']}>
+                <NotificationsPage />
+              </RoleRoute>
+            }
+          />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<DefaultIndexRedirect />} />
       </Routes>
     </BrowserRouter>
   )

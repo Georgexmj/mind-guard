@@ -1,118 +1,128 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  Card,
-  Row,
-  Col,
-  Typography,
-  Progress,
+  Alert,
   Button,
+  Card,
+  Col,
+  Descriptions,
+  Divider,
+  Progress,
+  Row,
   Space,
   Spin,
-  Alert,
-  Descriptions,
+  Statistic,
   Table,
   Tag,
-  Divider,
+  Typography,
 } from 'antd'
-import {
-  ArrowLeftOutlined,
-  UserOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  BulbOutlined,
-  BarChartOutlined,
-} from '@ant-design/icons'
+import { ArrowLeftOutlined, BarChartOutlined, BulbOutlined, UserOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
+
 import { getSessionDetail } from '../services/api'
-import type { AssessmentSession, AssessmentResult, DomainScores } from '../types'
+import type { AssessmentResult, AssessmentSession, DomainScores } from '../types'
 import RiskBadge from '../components/RiskBadge'
 import CognitiveRadar from '../components/CognitiveRadar'
 
 const { Title, Text, Paragraph } = Typography
 
-// Rich mock data for demo
-const MOCK_SESSION: AssessmentSession & { result?: AssessmentResult; user_name?: string } = {
-  id: 4,
-  user_id: 4,
-  status: 'completed',
-  started_at: '2024-03-21T09:00:00',
-  completed_at: '2024-03-21T09:22:00',
-  created_at: '2024-03-21T09:00:00',
-  user_name: '陈福寿',
-  result: {
-    id: 4,
-    session_id: 4,
-    risk_level: 'high_risk',
-    nc_probability: 0.08,
-    mci_probability: 0.31,
-    ad_probability: 0.61,
-    mmse_score: 18,
-    domain_scores: {
-      memory: 3.2,
-      orientation: 5.1,
-      language: 5.8,
-      attention: 4.4,
-      visuospatial: 3.7,
-      executive: 4.0,
-    },
-    recommendation:
-      '受试者在记忆力、视空间功能和执行功能方面存在明显缺损，MMSE评分(18分)低于正常阈值(24分)，认知障碍风险较高。强烈建议：\n1. 尽快前往神经内科或精神科进行专业评估；\n2. 完善神经影像学检查(头颅MRI)、神经心理学评估；\n3. 对家属进行认知障碍照护指导；\n4. 建议启动社区认知干预计划，每周参与认知训练活动；\n5. 一个月后进行随访复查。',
-    created_at: '2024-03-21T09:22:00',
-  },
-}
+type SessionDetail = AssessmentSession & { result?: AssessmentResult; user_name?: string }
 
-const domainConfig: { key: keyof DomainScores; label: string; desc: string }[] = [
-  { key: 'memory', label: '记忆力', desc: '短期记忆、工作记忆' },
-  { key: 'orientation', label: '定向力', desc: '时间、地点、人物定向' },
-  { key: 'language', label: '语言能力', desc: '语言理解、表达、命名' },
-  { key: 'attention', label: '注意力', desc: '持续注意、选择性注意' },
-  { key: 'visuospatial', label: '视空间', desc: '空间感知、视觉构建' },
-  { key: 'executive', label: '执行功能', desc: '计划、组织、灵活性' },
+const MMSE_SUBITEMS: Array<{ key: string; label: string; max: number }> = [
+  { key: 'orientation_time', label: '定向力（时间）', max: 5 },
+  { key: 'orientation_place', label: '定向力（地点）', max: 5 },
+  { key: 'registration', label: '即刻记忆', max: 3 },
+  { key: 'attention_calculation', label: '注意/计算', max: 5 },
+  { key: 'delayed_recall', label: '延迟回忆', max: 3 },
+  { key: 'naming', label: '命名', max: 2 },
+  { key: 'repetition', label: '复述', max: 1 },
+  { key: 'three_step_command', label: '三步指令', max: 3 },
+  { key: 'reading', label: '阅读理解', max: 1 },
+  { key: 'writing', label: '书写', max: 1 },
+  { key: 'figure_copy', label: '图形复制', max: 1 },
 ]
 
-const getScoreColor = (score: number): string => {
-  if (score >= 8) return '#52c41a'
-  if (score >= 5) return '#faad14'
-  return '#ff4d4f'
+const MOCA_SUBITEMS: Array<{ key: string; label: string; max: number }> = [
+  { key: 'trail_making', label: '交替连线', max: 1 },
+  { key: 'visuospatial', label: '视空间', max: 4 },
+  { key: 'naming', label: '命名', max: 3 },
+  { key: 'attention', label: '注意力', max: 6 },
+  { key: 'language', label: '语言', max: 3 },
+  { key: 'abstraction', label: '抽象', max: 2 },
+  { key: 'delayed_recall', label: '记忆（延迟回忆）', max: 5 },
+  { key: 'orientation', label: '定向力', max: 6 },
+]
+
+const DOMAIN_LABELS: Array<{ key: keyof DomainScores; label: string; desc: string }> = [
+  { key: 'memory', label: '记忆力', desc: '短时记忆与回忆能力' },
+  { key: 'orientation', label: '定向力', desc: '时间、地点、人物定向' },
+  { key: 'language', label: '语言能力', desc: '理解、表达与命名' },
+  { key: 'attention', label: '注意力', desc: '持续注意与信息加工' },
+  { key: 'visuospatial', label: '视空间', desc: '空间识别与构图能力' },
+  { key: 'executive', label: '执行功能', desc: '计划、切换与组织能力' },
+]
+
+function toFixedSafe(value: number | undefined, digits = 1): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '--'
+  return value.toFixed(digits)
 }
 
-const getScoreStatus = (score: number): 'success' | 'normal' | 'exception' => {
-  if (score >= 8) return 'success'
-  if (score >= 5) return 'normal'
-  return 'exception'
+function buildDomainScores(result?: AssessmentResult): DomainScores {
+  const fallback: DomainScores = {
+    memory: 0,
+    orientation: 0,
+    language: 0,
+    attention: 0,
+    visuospatial: 0,
+    executive: 0,
+  }
+  if (!result?.domain_scores) return fallback
+  return {
+    memory: Number(result.domain_scores.memory ?? 0),
+    orientation: Number(result.domain_scores.orientation ?? 0),
+    language: Number(result.domain_scores.language ?? 0),
+    attention: Number(result.domain_scores.attention ?? 0),
+    visuospatial: Number(result.domain_scores.visuospatial ?? 0),
+    executive: Number(result.domain_scores.executive ?? 0),
+  }
 }
 
-const getScoreLabel = (score: number): string => {
-  if (score >= 8) return '正常'
-  if (score >= 5) return '轻度异常'
-  return '明显受损'
+function mmseBand(score: number): string {
+  if (score >= 24) return '正常范围（>=24）'
+  if (score >= 18) return '轻中度下降（18-23）'
+  return '明显受损（<18）'
+}
+
+function mocaBand(score: number): string {
+  if (score >= 26) return '正常范围（>=26）'
+  if (score >= 18) return '可疑下降（18-25）'
+  return '中高风险（<18）'
 }
 
 const statusConfig: Record<string, { text: string; color: string }> = {
   completed: { text: '已完成', color: 'success' },
   in_progress: { text: '进行中', color: 'processing' },
-  pending: { text: '待开始', color: 'default' },
-  failed: { text: '已失败', color: 'error' },
+  pending: { text: '已暂停', color: 'warning' },
+  failed: { text: '失败', color: 'error' },
 }
 
 export default function AssessmentDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
-  const [session, setSession] = useState<typeof MOCK_SESSION | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [session, setSession] = useState<SessionDetail | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
       if (!sessionId) return
       setLoading(true)
+      setError(null)
       try {
         const data = await getSessionDetail(Number(sessionId))
-        setSession(data as typeof MOCK_SESSION)
-      } catch {
-        setError('无法连接到服务器，已加载演示数据')
-        setSession(MOCK_SESSION)
+        setSession(data)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '获取评估详情失败')
       } finally {
         setLoading(false)
       }
@@ -120,10 +130,28 @@ export default function AssessmentDetailPage() {
     fetchData()
   }, [sessionId])
 
+  const result = session?.result
+  const domainScores = useMemo(() => buildDomainScores(result), [result])
+  const statusInfo = statusConfig[session?.status ?? ''] || { text: session?.status ?? '-', color: 'default' }
+
+  const durationMinutes =
+    session?.started_at && session?.completed_at
+      ? dayjs(session.completed_at).diff(dayjs(session.started_at), 'minute')
+      : null
+
+  const mmseRows = MMSE_SUBITEMS.map((item) => {
+    const score = Number(result?.mmse_subscores?.[item.key] ?? 0)
+    return { ...item, score }
+  })
+  const mocaRows = MOCA_SUBITEMS.map((item) => {
+    const score = Number(result?.moca_subscores?.[item.key] ?? 0)
+    return { ...item, score }
+  })
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '120px 0' }}>
-        <Spin size="large" tip="加载评估报告..." />
+        <Spin size="large" tip="正在加载评估报告..." />
       </div>
     )
   }
@@ -132,10 +160,10 @@ export default function AssessmentDetailPage() {
     return (
       <Alert
         type="error"
-        message="评估记录不存在"
-        description="未找到该评估记录，请返回列表重新选择。"
+        message="未找到评估记录"
+        description={error || '请返回列表重试'}
         action={
-          <Button onClick={() => navigate('/assessments')} type="primary">
+          <Button type="primary" onClick={() => navigate('/assessments')}>
             返回列表
           </Button>
         }
@@ -143,36 +171,18 @@ export default function AssessmentDetailPage() {
     )
   }
 
-  const result = session.result
-  const duration =
-    session.started_at && session.completed_at
-      ? dayjs(session.completed_at).diff(dayjs(session.started_at), 'minute')
-      : null
-  const statusInfo = statusConfig[session.status] || { text: session.status, color: 'default' }
-
-  const domainTableData = domainConfig.map((item) => ({
-    key: item.key,
-    label: item.label,
-    desc: item.desc,
-    score: result?.domain_scores[item.key] ?? 0,
-  }))
-
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate(-1)}
-          style={{ borderRadius: 8 }}
-        >
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           返回
         </Button>
         <div>
-          <Title level={4} style={{ margin: 0 }}>评估详情报告</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            评估详情
+          </Title>
           <Text type="secondary">
-            评估编号 #{String(session.id).padStart(4, '0')} ·{' '}
-            {dayjs(session.created_at).format('YYYY年MM月DD日 HH:mm')}
+            会话 #{String(session.id).padStart(4, '0')} · 创建于 {dayjs(session.created_at).format('YYYY-MM-DD HH:mm')}
           </Text>
         </div>
       </div>
@@ -180,435 +190,258 @@ export default function AssessmentDetailPage() {
       {error && (
         <Alert
           type="warning"
-          message={error}
           showIcon
-          style={{ marginBottom: 16, borderRadius: 8 }}
-          closable
+          style={{ marginBottom: 16 }}
+          message="接口返回异常"
+          description={error}
         />
       )}
 
-      {/* Session Info Card */}
-      <Card
-        style={{
-          borderRadius: 12,
-          border: 'none',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-          marginBottom: 20,
-        }}
-        bodyStyle={{ padding: '20px 28px' }}
-      >
-        <Row gutter={[24, 16]} align="middle">
-          <Col xs={24} sm={16}>
-            <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small">
-              <Descriptions.Item
-                label={
-                  <Space>
-                    <UserOutlined style={{ color: '#1677ff' }} />
-                    <span>评估对象</span>
-                  </Space>
-                }
-              >
-                <Text strong>{session.user_name || `用户 #${session.user_id}`}</Text>
+      <Card style={{ marginBottom: 16 }}>
+        <Row justify="space-between" align="middle">
+          <Col span={20}>
+            <Descriptions size="small" column={{ xs: 1, md: 2, xl: 4 }}>
+              <Descriptions.Item label="评估对象">
+                <Space>
+                  <UserOutlined />
+                  <Text strong>{session.user_name || `用户 #${session.user_id}`}</Text>
+                </Space>
               </Descriptions.Item>
-              <Descriptions.Item
-                label={
-                  <Space>
-                    <ClockCircleOutlined style={{ color: '#722ed1' }} />
-                    <span>开始时间</span>
-                  </Space>
-                }
-              >
-                {session.started_at
-                  ? dayjs(session.started_at).format('MM-DD HH:mm')
-                  : '-'}
+              <Descriptions.Item label="开始时间">
+                {session.started_at ? dayjs(session.started_at).format('YYYY-MM-DD HH:mm') : '-'}
               </Descriptions.Item>
-              <Descriptions.Item
-                label={
-                  <Space>
-                    <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                    <span>完成时间</span>
-                  </Space>
-                }
-              >
-                {session.completed_at
-                  ? dayjs(session.completed_at).format('MM-DD HH:mm')
-                  : '-'}
+              <Descriptions.Item label="完成时间">
+                {session.completed_at ? dayjs(session.completed_at).format('YYYY-MM-DD HH:mm') : '-'}
               </Descriptions.Item>
-              {duration !== null && (
-                <Descriptions.Item label="评估时长">
-                  <Text strong style={{ color: '#1677ff' }}>{duration} 分钟</Text>
-                </Descriptions.Item>
-              )}
+              <Descriptions.Item label="耗时">{durationMinutes !== null ? `${durationMinutes} 分钟` : '-'}</Descriptions.Item>
             </Descriptions>
           </Col>
-          <Col xs={24} sm={8} style={{ textAlign: 'right' }}>
-            <Tag
-              color={statusInfo.color}
-              style={{ fontSize: 14, padding: '4px 16px', borderRadius: 16 }}
-            >
+          <Col span={4} style={{ textAlign: 'right' }}>
+            <Tag color={statusInfo.color} style={{ fontSize: 14 }}>
               {statusInfo.text}
             </Tag>
           </Col>
         </Row>
       </Card>
 
-      {result ? (
+      {!result && (
+        <Card>
+          <Alert
+            type="info"
+            showIcon
+            message="结果尚未生成"
+            description="该评估尚未完成分析，请稍后刷新页面。"
+          />
+        </Card>
+      )}
+
+      {result && (
         <>
-          {/* Risk Level + MMSE Row */}
-          <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
-            {/* Risk Level Card */}
-            <Col xs={24} md={8}>
-              <Card
-                style={{
-                  borderRadius: 12,
-                  border: 'none',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                  height: '100%',
-                }}
-                bodyStyle={{ padding: 28 }}
-              >
-                <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>
-                  综合风险评估
-                </Text>
-                <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <RiskBadge riskLevel={result.risk_level} size="large" />
-                </div>
-                <Divider style={{ margin: '20px 0' }} />
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>MMSE 认知评分</Text>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: 6,
-                      marginTop: 6,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 48,
-                        fontWeight: 800,
-                        color: getScoreColor(result.mmse_score / 3),
-                        lineHeight: 1,
-                      }}
-                    >
-                      {result.mmse_score}
-                    </span>
-                    <span style={{ fontSize: 18, color: '#999' }}>/30</span>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} lg={8}>
+              <Card>
+                <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                  <div>
+                    <Text type="secondary">综合风险评级</Text>
+                    <div style={{ marginTop: 10 }}>
+                      <RiskBadge riskLevel={result.risk_level} size="large" />
+                    </div>
                   </div>
-                  <Progress
-                    percent={Math.round((result.mmse_score / 30) * 100)}
-                    strokeColor={{
-                      '0%': '#ff4d4f',
-                      '60%': '#faad14',
-                      '80%': '#52c41a',
-                    }}
-                    showInfo={false}
-                    style={{ marginTop: 8 }}
-                  />
-                  <Text style={{ fontSize: 11, color: '#999' }}>
-                    正常标准: ≥24分 · 轻度损害: 18-23分 · 中重度损害: &lt;18分
+                  <Divider style={{ margin: 0 }} />
+                  <Statistic title="MMSE 总分" value={result.mmse_score} suffix="/ 30" />
+                  <Progress percent={Math.round((Number(result.mmse_score || 0) / 30) * 100)} showInfo={false} />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {mmseBand(Number(result.mmse_score || 0))}
                   </Text>
-                </div>
+                  <Statistic
+                    title="MoCA（校正后）"
+                    value={result.moca_score_corrected ?? result.moca_score ?? 0}
+                    suffix="/ 30"
+                  />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {mocaBand(Number(result.moca_score_corrected ?? result.moca_score ?? 0))}
+                  </Text>
+                </Space>
               </Card>
             </Col>
-
-            {/* Probability Bars */}
-            <Col xs={24} md={16}>
+            <Col xs={24} lg={16}>
               <Card
                 title={
                   <Space>
-                    <BarChartOutlined style={{ color: '#1677ff' }} />
-                    <Text strong>认知诊断概率分析</Text>
+                    <BarChartOutlined />
+                    <Text strong>风险概率分布</Text>
                   </Space>
                 }
-                style={{
-                  borderRadius: 12,
-                  border: 'none',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                  height: '100%',
-                }}
               >
-                <div style={{ padding: '8px 0' }}>
-                  {/* NC */}
-                  <div style={{ marginBottom: 28 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginBottom: 10,
-                      }}
-                    >
-                      <Space>
-                        <div
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            background: '#52c41a',
-                          }}
-                        />
-                        <Text strong style={{ fontSize: 15 }}>
-                          认知正常 (Normal Cognition)
-                        </Text>
-                      </Space>
-                      <Text
-                        strong
-                        style={{ fontSize: 22, color: '#52c41a' }}
-                      >
-                        {(result.nc_probability * 100).toFixed(1)}%
-                      </Text>
-                    </div>
-                    <Progress
-                      percent={Math.round(result.nc_probability * 100)}
-                      strokeColor="#52c41a"
-                      trailColor="#f0f0f0"
-                      strokeWidth={16}
-                      showInfo={false}
-                      style={{ borderRadius: 8 }}
-                    />
-                  </div>
-
-                  {/* MCI */}
-                  <div style={{ marginBottom: 28 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginBottom: 10,
-                      }}
-                    >
-                      <Space>
-                        <div
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            background: '#faad14',
-                          }}
-                        />
-                        <Text strong style={{ fontSize: 15 }}>
-                          轻度认知障碍 (MCI)
-                        </Text>
-                      </Space>
-                      <Text
-                        strong
-                        style={{ fontSize: 22, color: '#faad14' }}
-                      >
-                        {(result.mci_probability * 100).toFixed(1)}%
-                      </Text>
-                    </div>
-                    <Progress
-                      percent={Math.round(result.mci_probability * 100)}
-                      strokeColor="#faad14"
-                      trailColor="#f0f0f0"
-                      strokeWidth={16}
-                      showInfo={false}
-                    />
-                  </div>
-
-                  {/* AD */}
+                <Space direction="vertical" style={{ width: '100%' }} size={18}>
                   <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginBottom: 10,
-                      }}
-                    >
-                      <Space>
-                        <div
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            background: '#ff4d4f',
-                          }}
-                        />
-                        <Text strong style={{ fontSize: 15 }}>
-                          阿尔茨海默病 (AD)
-                        </Text>
-                      </Space>
-                      <Text
-                        strong
-                        style={{ fontSize: 22, color: '#ff4d4f' }}
-                      >
-                        {(result.ad_probability * 100).toFixed(1)}%
-                      </Text>
-                    </div>
-                    <Progress
-                      percent={Math.round(result.ad_probability * 100)}
-                      strokeColor="#ff4d4f"
-                      trailColor="#f0f0f0"
-                      strokeWidth={16}
-                      showInfo={false}
-                    />
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <Text>认知正常（NC）</Text>
+                      <Text strong>{(result.nc_probability * 100).toFixed(1)}%</Text>
+                    </Space>
+                    <Progress percent={Math.round(result.nc_probability * 100)} strokeColor="#52c41a" showInfo={false} />
                   </div>
-                </div>
+                  <div>
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <Text>轻度认知障碍（MCI）</Text>
+                      <Text strong>{(result.mci_probability * 100).toFixed(1)}%</Text>
+                    </Space>
+                    <Progress percent={Math.round(result.mci_probability * 100)} strokeColor="#faad14" showInfo={false} />
+                  </div>
+                  <div>
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <Text>阿尔茨海默病风险（AD）</Text>
+                      <Text strong>{(result.ad_probability * 100).toFixed(1)}%</Text>
+                    </Space>
+                    <Progress percent={Math.round(result.ad_probability * 100)} strokeColor="#ff4d4f" showInfo={false} />
+                  </div>
+                </Space>
               </Card>
             </Col>
           </Row>
 
-          {/* Cognitive Radar Chart */}
-          <Card
-            title={
-              <Space>
-                <span
-                  style={{
-                    width: 4,
-                    height: 18,
-                    background: '#1677ff',
-                    display: 'inline-block',
-                    borderRadius: 2,
-                  }}
-                />
-                <Text strong style={{ fontSize: 16 }}>
-                  认知维度雷达图
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  多维度认知功能可视化分析
-                </Text>
-              </Space>
-            }
-            style={{
-              borderRadius: 12,
-              border: 'none',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-              marginBottom: 20,
-            }}
-          >
-            <Row gutter={[24, 24]} align="middle">
+          <Card title="医生版标准报告（E-03）" style={{ marginBottom: 16 }}>
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
+              <Alert type="info" showIcon message={result.clinical_report?.risk_summary || '本报告基于多模态筛查结果生成，供医生参考。'} />
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={8}>
+                  <Card size="small">
+                    <Statistic title="MMSE 总分" value={result.mmse_score} suffix="/30" />
+                    <Text type="secondary">{result.clinical_report?.scale_interpretation?.mmse || mmseBand(Number(result.mmse_score || 0))}</Text>
+                  </Card>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Card size="small">
+                    <Statistic title="MoCA 原始分" value={result.moca_score ?? 0} suffix="/30" />
+                  </Card>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Card size="small">
+                    <Statistic title="MoCA 校正后" value={result.moca_score_corrected ?? result.moca_score ?? 0} suffix="/30" />
+                    {result.education_correction_applied ? (
+                      <Tag color="blue" style={{ marginTop: 8 }}>
+                        已应用教育校正 +{result.education_correction_points ?? 1}
+                      </Tag>
+                    ) : (
+                      <Tag style={{ marginTop: 8 }}>未触发教育校正</Tag>
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+
+              <Row gutter={[16, 16]}>
+                <Col xs={24} xl={12}>
+                  <Table
+                    size="small"
+                    pagination={false}
+                    rowKey="key"
+                    dataSource={mmseRows}
+                    columns={[
+                      { title: 'MMSE 子项（11项）', dataIndex: 'label', key: 'label' },
+                      {
+                        title: '得分',
+                        key: 'score',
+                        align: 'right',
+                        render: (_, row) => `${toFixedSafe(row.score, 1)} / ${row.max}`,
+                      },
+                    ]}
+                  />
+                </Col>
+                <Col xs={24} xl={12}>
+                  <Table
+                    size="small"
+                    pagination={false}
+                    rowKey="key"
+                    dataSource={mocaRows}
+                    columns={[
+                      { title: 'MoCA 子项（8项）', dataIndex: 'label', key: 'label' },
+                      {
+                        title: '得分',
+                        key: 'score',
+                        align: 'right',
+                        render: (_, row) => `${toFixedSafe(row.score, 1)} / ${row.max}`,
+                      },
+                    ]}
+                  />
+                </Col>
+              </Row>
+
+              {(result.clinical_report?.clinical_note || result.clinical_report?.weak_domains?.length) && (
+                <Card size="small" title="临床摘要">
+                  {result.clinical_report?.clinical_note && <Paragraph style={{ marginBottom: 8 }}>{result.clinical_report.clinical_note}</Paragraph>}
+                  {result.clinical_report?.weak_domains?.length ? (
+                    <Space wrap>
+                      {result.clinical_report.weak_domains.map((item, index) => (
+                        <Tag key={`${item.domain || 'domain'}-${index}`}>
+                          {(item.label || item.domain || '未知维度') + `：${toFixedSafe(item.score, 2)}`}
+                        </Tag>
+                      ))}
+                    </Space>
+                  ) : null}
+                </Card>
+              )}
+            </Space>
+          </Card>
+
+          <Card title="六维认知域雷达图" style={{ marginBottom: 16 }}>
+            <Row gutter={[16, 16]} align="middle">
               <Col xs={24} lg={14}>
-                <CognitiveRadar domainScores={result.domain_scores} height={400} />
+                <CognitiveRadar domainScores={domainScores} height={360} />
               </Col>
               <Col xs={24} lg={10}>
-                <div style={{ marginBottom: 16 }}>
-                  <Text strong style={{ fontSize: 14 }}>各维度评分详情</Text>
-                  <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
-                    满分 10 分，绿色参考线为正常范围(≥8)
-                  </Text>
-                </div>
                 <Table
-                  dataSource={domainTableData}
+                  size="small"
                   rowKey="key"
                   pagination={false}
-                  size="small"
+                  dataSource={DOMAIN_LABELS.map((d) => ({
+                    key: d.key,
+                    label: d.label,
+                    desc: d.desc,
+                    score: Number(domainScores[d.key] ?? 0),
+                  }))}
                   columns={[
                     {
-                      title: '维度',
-                      dataIndex: 'label',
+                      title: '认知域',
                       key: 'label',
-                      width: 90,
-                      render: (text, record) => (
+                      render: (_, row) => (
                         <div>
-                          <Text strong style={{ fontSize: 13 }}>{text}</Text>
-                          <div style={{ fontSize: 11, color: '#aaa' }}>{record.desc}</div>
+                          <Text strong>{row.label}</Text>
+                          <div style={{ fontSize: 12, color: '#999' }}>{row.desc}</div>
                         </div>
                       ),
                     },
                     {
-                      title: '评分',
+                      title: '分值',
                       dataIndex: 'score',
                       key: 'score',
-                      width: 120,
-                      render: (score: number) => (
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                            <Text strong style={{ color: getScoreColor(score), fontSize: 14 }}>
-                              {score.toFixed(1)}
-                            </Text>
-                            <Tag
-                              color={score >= 8 ? 'success' : score >= 5 ? 'warning' : 'error'}
-                              style={{ borderRadius: 8, fontSize: 11, padding: '0 6px' }}
-                            >
-                              {getScoreLabel(score)}
-                            </Tag>
-                          </div>
-                          <Progress
-                            percent={score * 10}
-                            status={getScoreStatus(score)}
-                            showInfo={false}
-                            size="small"
-                            strokeColor={getScoreColor(score)}
-                          />
-                        </div>
-                      ),
+                      align: 'right',
+                      render: (value: number) => toFixedSafe(value, 1),
                     },
                   ]}
-                  style={{ borderRadius: 8 }}
                 />
               </Col>
             </Row>
           </Card>
 
-          {/* Recommendation */}
           <Card
             title={
               <Space>
-                <BulbOutlined style={{ color: '#faad14', fontSize: 18 }} />
-                <Text strong style={{ fontSize: 16 }}>
-                  干预建议
-                </Text>
+                <BulbOutlined />
+                <Text strong>建议与说明</Text>
               </Space>
             }
-            style={{
-              borderRadius: 12,
-              border: 'none',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-            }}
-            headStyle={{ borderBottom: '1px solid #f0f0f0' }}
           >
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%)',
-                borderRadius: 10,
-                padding: '20px 24px',
-                borderLeft: '4px solid #1677ff',
-              }}
-            >
-              {result.recommendation.split('\n').map((line, idx) =>
-                line.trim() ? (
-                  <Paragraph
-                    key={idx}
-                    style={{
-                      margin: idx === 0 ? '0 0 8px' : '4px 0',
-                      lineHeight: 1.8,
-                      fontSize: 14,
-                      color: '#1a1a2e',
-                    }}
-                  >
-                    {line}
-                  </Paragraph>
-                ) : null
-              )}
-            </div>
-            <div
-              style={{
-                marginTop: 16,
-                padding: '12px 16px',
-                background: '#fffbe6',
-                borderRadius: 8,
-                border: '1px solid #ffe58f',
-              }}
-            >
-              <Text style={{ fontSize: 13, color: '#876800' }}>
-                <strong>注意：</strong>
-                本系统评估结果仅供参考，不作为医学诊断依据。如有疑虑，请务必前往正规医疗机构就诊，由专业医生进行综合评估。
-              </Text>
-            </div>
+            {(result.recommendation || '').split('\n').filter(Boolean).map((line, index) => (
+              <Paragraph key={`${line}-${index}`} style={{ marginBottom: 6 }}>
+                {line}
+              </Paragraph>
+            ))}
+            <Divider />
+            <Text type="secondary">
+              本报告用于社区早筛和随访管理，不作为单独临床诊断依据。请结合病史、体检及专科评估综合判断。
+            </Text>
           </Card>
         </>
-      ) : (
-        <Card
-          style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
-        >
-          <Alert
-            type="info"
-            message="暂无评估结果"
-            description="该评估尚未完成或结果正在处理中，请稍后查看。"
-            showIcon
-          />
-        </Card>
       )}
     </div>
   )

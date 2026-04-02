@@ -71,3 +71,26 @@ class InterventionRecordOut(BaseModel):
     notes: Optional[str] = None
     mood_score: Optional[int] = None
     created_at: datetime
+
+
+class InterventionRecommendationItemOut(BaseModel):
+    rank: int
+    code: str
+    title: str
+    category: str
+    target_domains: List[str]
+    frequency: str
+    duration_minutes: int
+    rationale: str
+    priority_score: float
+    evidence_level: str
+
+
+class InterventionTop5Out(BaseModel):
+    elder_id: int
+    session_id: int
+    risk_level: str
+    mmse_score: Optional[float] = None
+    moca_score_corrected: Optional[float] = None
+    generated_at: datetime
+    recommendations: List[InterventionRecommendationItemOut]

@@ -1,0 +1,17 @@
+{
+  "raw_root": "D:\\张家界学院材料\\竞赛\\竞赛项目\\基于多模态交互的社区老年认知障碍早期筛查与干预系统\\data\\open_multimodal_seed",
+  "output_csv": "D:\\张家界学院材料\\竞赛\\竞赛项目\\基于多模态交互的社区老年认知障碍早期筛查与干预系统\\data\\deep_train_auto.csv",
+  "checkpoint": "D:\\张家界学院材料\\竞赛\\竞赛项目\\基于多模态交互的社区老年认知障碍早期筛查与干预系统\\backend\\models\\deep_multimodal_fusion.pt",
+  "downloaded": {
+    "audio": 290,
+    "image": 75,
+    "video": 3
+  },
+  "usable_assets": {
+    "audio": 291,
+    "image": 80,
+    "video": 4
+  },
+  "rows": 3000,
+  "train_status": "trained"
+}

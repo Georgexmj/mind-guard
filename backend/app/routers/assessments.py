@@ -11,7 +11,7 @@ from app.models.user import User, UserRole
 from app.models.assessment import AssessmentSession, SessionStatus
 from app.schemas.assessment import (
     SessionCreate, SessionOut, QuestionOut,
-    AnswerSubmit, AnswerOut, ResultOut, TaskStatusOut
+    AnswerSubmit, AnswerOut, ResultOut, TaskStatusOut, PauseResumeOut
 )
 from app.services import assessment_service
 from app.tasks.celery_app import celery_app
@@ -155,6 +155,81 @@ def complete_session(
 
     result = assessment_service.complete_session(db, session_id)
     return result
+
+
+@router.post("/sessions/{session_id}/pause", response_model=PauseResumeOut)
+def pause_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Pause an in-progress assessment session.
+    The same session can be resumed within 30 minutes.
+    """
+    session = assessment_service.get_session_by_id(db, session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found",
+        )
+
+    if current_user.role not in (UserRole.admin, UserRole.doctor) and session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this session",
+        )
+
+    return assessment_service.pause_session(db, session_id)
+
+
+@router.post("/sessions/{session_id}/resume", response_model=PauseResumeOut)
+def resume_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Resume a paused assessment session.
+    Resume is available only within the 30-minute pause window.
+    """
+    session = assessment_service.get_session_by_id(db, session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found",
+        )
+
+    if current_user.role not in (UserRole.admin, UserRole.doctor) and session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this session",
+        )
+
+    return assessment_service.resume_session(db, session_id)
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_200_OK)
+def discard_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Discard an unfinished session when user exits assessment midway."""
+    session = assessment_service.get_session_by_id(db, session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found",
+        )
+
+    if current_user.role not in (UserRole.admin, UserRole.doctor) and session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this session",
+        )
+
+    return assessment_service.discard_session(db, session_id)
 
 
 @router.get("/sessions/{session_id}/result", response_model=Optional[ResultOut])

@@ -76,6 +76,16 @@ export default function EldersPage() {
   const [pageSize] = useState(10)
   const navigate = useNavigate()
 
+  const applyMockCommunityFilter = useCallback(() => {
+    const filtered = communityFilter == null
+      ? MOCK_ELDERS
+      : MOCK_ELDERS.filter((item) => item.community_id === communityFilter)
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    setElders(filtered.slice(start, end))
+    setTotal(filtered.length)
+  }, [communityFilter, page, pageSize])
+
   const fetchElders = useCallback(async () => {
     setLoading(true)
     try {
@@ -84,16 +94,22 @@ export default function EldersPage() {
         page_size: pageSize,
         community_id: communityFilter,
       })
-      if (Array.isArray(res) && res.length > 0) {
-        setElders(res as ElderRow[])
-        setTotal(res.length)
+      if (Array.isArray(res)) {
+        const filtered = communityFilter == null
+          ? (res as ElderRow[])
+          : (res as ElderRow[]).filter((item) => item.community_id === communityFilter)
+        setElders(filtered)
+        setTotal(filtered.length)
+      } else {
+        applyMockCommunityFilter()
       }
     } catch {
-      // Use mock data on failure
+      // Use mock data on failure.
+      applyMockCommunityFilter()
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, communityFilter])
+  }, [applyMockCommunityFilter, page, pageSize, communityFilter])
 
   const fetchCommunities = useCallback(async () => {
     try {
@@ -199,7 +215,7 @@ export default function EldersPage() {
       render: (date) =>
         date ? (
           <Tooltip title={dayjs(date).format('YYYY-MM-DD')}>
-            <Text style={{ fontSize: 13 }}>{dayjs(date).fromNow?.() || dayjs(date).format('MM-DD')}</Text>
+            <Text style={{ fontSize: 13 }}>{dayjs(date).format('MM-DD')}</Text>
           </Tooltip>
         ) : (
           <Text type="secondary">暂无记录</Text>
@@ -275,7 +291,10 @@ export default function EldersPage() {
               style={{ width: '100%', borderRadius: 8 }}
               allowClear
               value={communityFilter}
-              onChange={(val) => setCommunityFilter(val)}
+              onChange={(val) => {
+                setCommunityFilter(val)
+                setPage(1)
+              }}
               options={communities.map((c) => ({ label: c.name, value: c.id }))}
             />
           </Col>

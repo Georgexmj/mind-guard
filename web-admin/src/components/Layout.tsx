@@ -10,49 +10,83 @@ import {
   MedicineBoxOutlined,
   HeartOutlined,
   BookOutlined,
+  BellOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
+import type { User } from '../types'
 
 const { Sider, Header, Content } = AntLayout
 const { Text } = Typography
 
-const menuItems = [
+type UserRole = User['role']
+
+type MenuItem = {
+  key: string
+  icon: React.ReactNode
+  label: string
+  roles: UserRole[]
+}
+
+const menuItems: MenuItem[] = [
   {
     key: '/dashboard',
     icon: <DashboardOutlined />,
     label: '仪表盘',
+    roles: ['admin', 'doctor'],
   },
   {
     key: '/elders',
     icon: <UserOutlined />,
     label: '老人管理',
+    roles: ['admin', 'doctor'],
   },
   {
     key: '/assessments',
     icon: <FileTextOutlined />,
     label: '评估管理',
+    roles: ['admin', 'doctor', 'elder', 'family'],
   },
   {
     key: '/interventions',
     icon: <HeartOutlined />,
     label: '干预管理',
+    roles: ['admin', 'doctor', 'elder', 'family'],
   },
   {
     key: '/questions',
     icon: <BookOutlined />,
     label: '题库管理',
+    roles: ['admin', 'doctor'],
+  },
+  {
+    key: '/notifications',
+    icon: <BellOutlined />,
+    label: '通知中心',
+    roles: ['admin', 'doctor', 'elder', 'family'],
   },
 ]
+
+const roleLabelMap: Record<UserRole, string> = {
+  admin: '管理员',
+  doctor: '医生',
+  elder: '老人用户',
+  family: '家属用户',
+}
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const role = user?.role
+
+  const visibleMenuItems = role
+    ? menuItems.filter((item) => item.roles.includes(role))
+    : []
 
   const selectedKey =
-    menuItems.find((item) => location.pathname.startsWith(item.key))?.key || '/dashboard'
+    visibleMenuItems.find((item) => location.pathname.startsWith(item.key))?.key || visibleMenuItems[0]?.key
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key)
@@ -108,7 +142,7 @@ export default function Layout() {
                 letterSpacing: 1,
               }}
             >
-              CogniCare
+              MindGuard
             </Text>
           )}
         </div>
@@ -116,8 +150,8 @@ export default function Layout() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[selectedKey]}
-          items={menuItems}
+          selectedKeys={selectedKey ? [selectedKey] : []}
+          items={visibleMenuItems}
           onClick={handleMenuClick}
           style={{
             background: 'transparent',
@@ -154,7 +188,9 @@ export default function Layout() {
                 style={{ backgroundColor: '#1677ff' }}
                 icon={<UserOutlined />}
               />
-              <Text style={{ fontWeight: 500 }}>{user?.name || '管理员'}</Text>
+              <Text style={{ fontWeight: 500 }}>
+                {user?.name || '未登录'}{user?.role ? `（${roleLabelMap[user.role]}）` : ''}
+              </Text>
             </Space>
           </Dropdown>
         </Header>

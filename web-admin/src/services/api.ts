@@ -6,6 +6,8 @@ import type {
   AssessmentResult,
   TokenResponse,
   DashboardStats,
+  NotificationItem,
+  InterventionTop5Recommendation,
 } from '../types'
 
 const apiClient = axios.create({
@@ -152,6 +154,14 @@ export const submitInterventionRecord = async (data: Record<string, unknown>): P
   return response.data
 }
 
+export const getInterventionTop5Recommendations = async (params?: {
+  elder_id?: number
+  session_id?: number
+}): Promise<InterventionTop5Recommendation> => {
+  const response = await apiClient.get<InterventionTop5Recommendation>('/interventions/recommendations/top5', { params })
+  return response.data
+}
+
 // Questions (admin)
 export const getQuestions = async (params?: {
   domain?: string
@@ -169,6 +179,36 @@ export const createQuestion = async (data: Record<string, unknown>): Promise<unk
   return response.data
 }
 
+export const updateQuestion = async (questionId: number, data: Record<string, unknown>): Promise<unknown> => {
+  const response = await apiClient.put(`/questions/${questionId}`, data)
+  return response.data
+}
+
+export const deleteQuestion = async (questionId: number): Promise<unknown> => {
+  const response = await apiClient.delete(`/questions/${questionId}`)
+  return response.data
+}
+
+export const exportQuestionsCsv = async (params?: {
+  domain?: string
+  q_type?: string
+  is_active?: boolean
+}): Promise<{ blob: Blob; filename: string }> => {
+  const response = await apiClient.get<Blob>('/questions/export/csv', {
+    params,
+    responseType: 'blob',
+  })
+  const disposition = response.headers['content-disposition'] as string | undefined
+  let filename = 'mindguard_questions.csv'
+  if (disposition) {
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?\"?([^\";]+)\"?/i)
+    if (match?.[1]) {
+      filename = decodeURIComponent(match[1])
+    }
+  }
+  return { blob: response.data, filename }
+}
+
 // Dashboard analytics
 export const getDashboardMonthlyTrend = async (months = 6): Promise<{ month: string; count: number }[]> => {
   const response = await apiClient.get('/dashboard/monthly-trend', { params: { months } })
@@ -178,4 +218,29 @@ export const getDashboardMonthlyTrend = async (months = 6): Promise<{ month: str
 export const getDashboardHighRiskList = async (limit = 10): Promise<unknown[]> => {
   const response = await apiClient.get('/dashboard/high-risk-list', { params: { limit } })
   return response.data
+}
+
+// Notifications
+export const getNotifications = async (params?: {
+  unread_only?: boolean
+  type?: 'assessment_completed' | 'high_risk_alert' | 'system_message'
+  page?: number
+  page_size?: number
+}): Promise<NotificationItem[]> => {
+  const response = await apiClient.get<NotificationItem[]>('/notifications', { params })
+  return response.data
+}
+
+export const getNotificationUnreadCount = async (): Promise<number> => {
+  const response = await apiClient.get<{ unread_count: number }>('/notifications/unread-count')
+  return response.data.unread_count || 0
+}
+
+export const markNotificationRead = async (notificationId: number): Promise<void> => {
+  await apiClient.put(`/notifications/${notificationId}/read`)
+}
+
+export const markAllNotificationsRead = async (): Promise<number> => {
+  const response = await apiClient.put<{ marked_count: number }>('/notifications/read-all')
+  return response.data.marked_count || 0
 }

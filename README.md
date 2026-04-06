@@ -148,18 +148,18 @@ npm install
 
 *项目持续开发中 | 全国大学生软件创新大赛参赛作品*
 
-## ��ǰ Docker �˿�ӳ���
+## 当前 Docker 端口映射表
 
-> ����Ϊ��Ŀ��ǰĬ�� Docker �����˿�ӳ�䣨�� 30000 ��ʼ����
+> 以下为项目当前默认 Docker 服务端口映射（从 30000 开始）。
 
-| ���� | Docker �����˿� | �����ڲ��˿� | ����˵�� |
+| 服务 | Docker 对外端口 | 容器内部端口 | 备注说明 |
 |------|------------------|--------------|----------|
 | Web Admin | 30000 | 80 | http://localhost:30000 |
 | FastAPI Backend | 30001 | 8000 | http://localhost:30001/docs |
-| MySQL | 30002 | 3306 | ���������� `localhost:30002` |
-| Redis | 30003 | 6379 | ���������� `localhost:30003` |
-| MinIO API | 30004 | 9000 | S3 API �˵� |
+| MySQL | 30002 | 3306 | 数据库连接地址 `localhost:30002` |
+| Redis | 30003 | 6379 | 缓存连接地址 `localhost:30003` |
+| MinIO API | 30004 | 9000 | S3 API 端点 |
 | MinIO Console | 30005 | 9001 | http://localhost:30005 |
 | InfluxDB | 30006 | 8086 | http://localhost:30006 |
-| MongoDB | 30007 | 27017 | ���������� `localhost:30007` |
+| MongoDB | 30007 | 27017 | 数据库连接地址 `localhost:30007` |
 

@@ -95,3 +95,48 @@ class BindFamilyRequest(BaseModel):
     relationship: str
     notify_level: int = 1
     is_primary: bool = False
+
+
+class FamilyRelationshipOut(BaseModel):
+    id: int
+    elder_id: int
+    elder_name: Optional[str] = None
+    family_id: int
+    family_name: Optional[str] = None
+    relationship: str
+    notify_level: int
+    is_primary: bool
+    created_at: datetime
+
+
+class FamilyUnbindOut(BaseModel):
+    deleted_id: int
+    message: str
+
+
+class WechatBindingUpsert(BaseModel):
+    user_id: int
+    openid: str
+    unionid: Optional[str] = None
+    is_active: bool = True
+
+
+class WechatBindingOut(BaseModel):
+    id: int
+    user_id: int
+    openid: str
+    unionid: Optional[str] = None
+    is_active: bool
+    last_sent_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class WechatBindingByCodeCreate(BaseModel):
+    user_id: int
+    code: str
+    is_active: bool = True
+
+
+class WechatBindingByCodeOut(WechatBindingOut):
+    mode: str

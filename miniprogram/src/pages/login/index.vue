@@ -102,6 +102,15 @@ function fillDemo() {
   errorMsg.value = ''
 }
 
+function wxLoginCode() {
+  return new Promise((resolve, reject) => {
+    wx.login({
+      success: (res) => resolve(res.code || ''),
+      fail: (err) => reject(err),
+    })
+  })
+}
+
 async function handleLogin() {
   // Validation
   errorMsg.value = ''
@@ -133,6 +142,19 @@ async function handleLogin() {
       if (!accepted) {
         loading.value = false
         return
+      }
+
+      try {
+        const code = await wxLoginCode()
+        if (code && result.user?.id) {
+          await api.bindWechatByCode({
+            user_id: result.user.id,
+            code,
+            is_active: true,
+          })
+        }
+      } catch (bindErr) {
+        console.warn('WeChat bind by code failed:', bindErr)
       }
 
       wx.showToast({

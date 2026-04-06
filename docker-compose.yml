@@ -94,12 +94,23 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      CELERY_BEAT_ENABLED: ${CELERY_BEAT_ENABLED:-true}
+      CELERY_BEAT_ADHERENCE_INTERVAL_MINUTES: ${CELERY_BEAT_ADHERENCE_INTERVAL_MINUTES:-30}
+      CELERY_BEAT_ADHERENCE_DUE_ONLY: ${CELERY_BEAT_ADHERENCE_DUE_ONLY:-true}
+      CELERY_BEAT_REASSESSMENT_INTERVAL_MINUTES: ${CELERY_BEAT_REASSESSMENT_INTERVAL_MINUTES:-120}
+      CELERY_BEAT_REASSESSMENT_WITHIN_DAYS: ${CELERY_BEAT_REASSESSMENT_WITHIN_DAYS:-7}
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-cognitive_admin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-cognitive_minio_2026}
       MINIO_BUCKET: ${MINIO_BUCKET:-cognitive-files}
       MINIO_SECURE: "false"
-      CORS_ORIGINS: '["http://localhost","http://127.0.0.1","http://localhost:5173","http://localhost:3000","https://servicewechat.com"]'
+      WECHAT_MP_APPID: ${WECHAT_MP_APPID:-}
+      WECHAT_MP_SECRET: ${WECHAT_MP_SECRET:-}
+      WECHAT_TEMPLATE_ID_ADHERENCE: ${WECHAT_TEMPLATE_ID_ADHERENCE:-}
+      WECHAT_TEMPLATE_ID_REASSESSMENT: ${WECHAT_TEMPLATE_ID_REASSESSMENT:-}
+      WECHAT_MINIPROGRAM_PAGE: ${WECHAT_MINIPROGRAM_PAGE:-pages/index/index}
+      WECHAT_MOCK_MODE: ${WECHAT_MOCK_MODE:-true}
+      CORS_ORIGINS: '["https://admin.zhouchao5563.online","https://h5.zhouchao5563.online","https://api.zhouchao5563.online","https://servicewechat.com","http://localhost","http://127.0.0.1","http://localhost:5173","http://localhost:3000"]'
     depends_on:
       mysql:
         condition: service_healthy
@@ -135,11 +146,22 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      CELERY_BEAT_ENABLED: ${CELERY_BEAT_ENABLED:-true}
+      CELERY_BEAT_ADHERENCE_INTERVAL_MINUTES: ${CELERY_BEAT_ADHERENCE_INTERVAL_MINUTES:-30}
+      CELERY_BEAT_ADHERENCE_DUE_ONLY: ${CELERY_BEAT_ADHERENCE_DUE_ONLY:-true}
+      CELERY_BEAT_REASSESSMENT_INTERVAL_MINUTES: ${CELERY_BEAT_REASSESSMENT_INTERVAL_MINUTES:-120}
+      CELERY_BEAT_REASSESSMENT_WITHIN_DAYS: ${CELERY_BEAT_REASSESSMENT_WITHIN_DAYS:-7}
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-cognitive_admin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-cognitive_minio_2026}
       MINIO_BUCKET: ${MINIO_BUCKET:-cognitive-files}
       MINIO_SECURE: "false"
+      WECHAT_MP_APPID: ${WECHAT_MP_APPID:-}
+      WECHAT_MP_SECRET: ${WECHAT_MP_SECRET:-}
+      WECHAT_TEMPLATE_ID_ADHERENCE: ${WECHAT_TEMPLATE_ID_ADHERENCE:-}
+      WECHAT_TEMPLATE_ID_REASSESSMENT: ${WECHAT_TEMPLATE_ID_REASSESSMENT:-}
+      WECHAT_MINIPROGRAM_PAGE: ${WECHAT_MINIPROGRAM_PAGE:-pages/index/index}
+      WECHAT_MOCK_MODE: ${WECHAT_MOCK_MODE:-true}
     depends_on:
       mysql:
         condition: service_healthy
@@ -148,6 +170,37 @@ services:
       backend:
         condition: service_healthy
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2 -Q ai_analysis,celery
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DEBUG: ${DEBUG:-false}
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-cognitive_user}:${MYSQL_PASSWORD:-cognitive_pass_2026}@mysql:3306/${MYSQL_DATABASE:-cognitive_db}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      CELERY_BEAT_ENABLED: ${CELERY_BEAT_ENABLED:-true}
+      CELERY_BEAT_ADHERENCE_INTERVAL_MINUTES: ${CELERY_BEAT_ADHERENCE_INTERVAL_MINUTES:-30}
+      CELERY_BEAT_ADHERENCE_DUE_ONLY: ${CELERY_BEAT_ADHERENCE_DUE_ONLY:-true}
+      CELERY_BEAT_REASSESSMENT_INTERVAL_MINUTES: ${CELERY_BEAT_REASSESSMENT_INTERVAL_MINUTES:-120}
+      CELERY_BEAT_REASSESSMENT_WITHIN_DAYS: ${CELERY_BEAT_REASSESSMENT_WITHIN_DAYS:-7}
+      WECHAT_MP_APPID: ${WECHAT_MP_APPID:-}
+      WECHAT_MP_SECRET: ${WECHAT_MP_SECRET:-}
+      WECHAT_TEMPLATE_ID_ADHERENCE: ${WECHAT_TEMPLATE_ID_ADHERENCE:-}
+      WECHAT_TEMPLATE_ID_REASSESSMENT: ${WECHAT_TEMPLATE_ID_REASSESSMENT:-}
+      WECHAT_MINIPROGRAM_PAGE: ${WECHAT_MINIPROGRAM_PAGE:-pages/index/index}
+      WECHAT_MOCK_MODE: ${WECHAT_MOCK_MODE:-true}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    command: celery -A app.tasks.celery_app beat --loglevel=info
 
   web_admin:
     build:

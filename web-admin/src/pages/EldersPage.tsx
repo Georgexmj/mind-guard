@@ -1,41 +1,48 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Card,
-  Table,
-  Input,
-  Select,
-  Button,
-  Space,
-  Typography,
   Avatar,
-  Tooltip,
-  Row,
+  Button,
+  Card,
   Col,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Table,
   Tag,
+  Tooltip,
+  Typography,
+  message,
 } from 'antd'
-import {
-  SearchOutlined,
-  UserOutlined,
-  EyeOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons'
+import { DeleteOutlined, EyeOutlined, LinkOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { getElders, getCommunities } from '../services/api'
-import type { User, Community } from '../types'
+import {
+  createFamilyRelationship,
+  deleteFamilyRelationship,
+  getDashboardWorkbenchQueues,
+  getCommunities,
+  getElders,
+  getFamilies,
+  getFamilyRelationships,
+} from '../services/api'
+import type { Community, FamilyRelationship, User } from '../types'
 import RiskBadge from '../components/RiskBadge'
 
 const { Title, Text } = Typography
 
-// Extended type to include display fields
 type ElderRow = User & {
   community_name?: string
   last_assessment?: string
   risk_level?: 'normal' | 'mild_risk' | 'high_risk'
 }
 
-const educationLabel = (years?: number): string => {
+const genderMap: Record<string, string> = { male: '男', female: '女' }
+
+function educationLabel(years?: number): string {
   if (years == null) return '未填写'
   if (years <= 6) return '小学'
   if (years <= 9) return '初中'
@@ -44,218 +51,243 @@ const educationLabel = (years?: number): string => {
   return '本科及以上'
 }
 
-// Mock fallback data
-const MOCK_ELDERS: ElderRow[] = [
-  { id: 1, uuid: 'u1', name: '王秀兰', phone: '138****0001', role: 'elder', community_id: 1, created_at: '2024-01-10', birth_date: '1948-03-15', gender: 'female', education_years: 6, community_name: '幸福社区', last_assessment: '2024-03-20', risk_level: 'normal' },
-  { id: 2, uuid: 'u2', name: '李德明', phone: '139****0002', role: 'elder', community_id: 1, created_at: '2024-01-12', birth_date: '1945-07-22', gender: 'male', education_years: 9, community_name: '幸福社区', last_assessment: '2024-03-18', risk_level: 'mild_risk' },
-  { id: 3, uuid: 'u3', name: '张桂珍', phone: '136****0003', role: 'elder', community_id: 2, created_at: '2024-01-15', birth_date: '1950-11-08', gender: 'female', education_years: 12, community_name: '阳光社区', last_assessment: '2024-03-22', risk_level: 'normal' },
-  { id: 4, uuid: 'u4', name: '陈福寿', phone: '137****0004', role: 'elder', community_id: 2, created_at: '2024-01-20', birth_date: '1942-05-30', gender: 'male', education_years: 6, community_name: '阳光社区', last_assessment: '2024-03-15', risk_level: 'high_risk' },
-  { id: 5, uuid: 'u5', name: '刘淑华', phone: '135****0005', role: 'elder', community_id: 3, created_at: '2024-02-01', birth_date: '1952-09-12', gender: 'female', education_years: 15, community_name: '和谐社区', last_assessment: '2024-03-21', risk_level: 'normal' },
-  { id: 6, uuid: 'u6', name: '赵建国', phone: '132****0006', role: 'elder', community_id: 3, created_at: '2024-02-05', birth_date: '1947-12-01', gender: 'male', education_years: 12, community_name: '和谐社区', last_assessment: '2024-03-19', risk_level: 'mild_risk' },
-  { id: 7, uuid: 'u7', name: '周金凤', phone: '133****0007', role: 'elder', community_id: 1, created_at: '2024-02-10', birth_date: '1955-04-18', gender: 'female', education_years: 15, community_name: '幸福社区', last_assessment: '2024-03-22', risk_level: 'normal' },
-  { id: 8, uuid: 'u8', name: '吴永祥', phone: '134****0008', role: 'elder', community_id: 2, created_at: '2024-02-15', birth_date: '1940-08-25', gender: 'male', education_years: 6, community_name: '阳光社区', last_assessment: undefined, risk_level: undefined },
-  { id: 9, uuid: 'u9', name: '孙美英', phone: '131****0009', role: 'elder', community_id: 1, created_at: '2024-02-20', birth_date: '1953-02-14', gender: 'female', education_years: 9, community_name: '幸福社区', last_assessment: '2024-03-17', risk_level: 'high_risk' },
-  { id: 10, uuid: 'u10', name: '胡长寿', phone: '130****0010', role: 'elder', community_id: 3, created_at: '2024-03-01', birth_date: '1944-06-07', gender: 'male', education_years: 9, community_name: '和谐社区', last_assessment: '2024-03-20', risk_level: 'normal' },
-]
-
-const calculateAge = (birthDate?: string): number | string => {
+function calcAge(birthDate?: string): string {
   if (!birthDate) return '-'
-  return dayjs().diff(dayjs(birthDate), 'year')
+  return `${dayjs().diff(dayjs(birthDate), 'year')}岁`
 }
 
-const genderMap: Record<string, string> = { male: '男', female: '女' }
-
 export default function EldersPage() {
-  const [elders, setElders] = useState<ElderRow[]>(MOCK_ELDERS)
+  const [elders, setElders] = useState<ElderRow[]>([])
   const [communities, setCommunities] = useState<Community[]>([])
   const [loading, setLoading] = useState(false)
+
   const [searchName, setSearchName] = useState('')
   const [communityFilter, setCommunityFilter] = useState<number | undefined>()
-  const [total, setTotal] = useState(MOCK_ELDERS.length)
-  const [page, setPage] = useState(1)
-  const [pageSize] = useState(10)
-  const navigate = useNavigate()
 
-  const applyMockCommunityFilter = useCallback(() => {
-    const filtered = communityFilter == null
-      ? MOCK_ELDERS
-      : MOCK_ELDERS.filter((item) => item.community_id === communityFilter)
-    const start = (page - 1) * pageSize
-    const end = start + pageSize
-    setElders(filtered.slice(start, end))
-    setTotal(filtered.length)
-  }, [communityFilter, page, pageSize])
+  const [bindModalOpen, setBindModalOpen] = useState(false)
+  const [families, setFamilies] = useState<User[]>([])
+  const [relations, setRelations] = useState<FamilyRelationship[]>([])
+  const [relationLoading, setRelationLoading] = useState(false)
+  const [bindForm] = Form.useForm()
+  const [queueElderIdSet, setQueueElderIdSet] = useState<Set<number>>(new Set())
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const queueFilter = (searchParams.get('queue') || '').trim()
 
   const fetchElders = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getElders({
-        page,
-        page_size: pageSize,
-        community_id: communityFilter,
-      })
-      if (Array.isArray(res)) {
-        const filtered = communityFilter == null
-          ? (res as ElderRow[])
-          : (res as ElderRow[]).filter((item) => item.community_id === communityFilter)
-        setElders(filtered)
-        setTotal(filtered.length)
-      } else {
-        applyMockCommunityFilter()
-      }
-    } catch {
-      // Use mock data on failure.
-      applyMockCommunityFilter()
+      const rows = await getElders({ page: 1, page_size: 200, community_id: communityFilter })
+      const normalized = (rows || []) as ElderRow[]
+      setElders(normalized)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '加载老人列表失败')
+      setElders([])
     } finally {
       setLoading(false)
     }
-  }, [applyMockCommunityFilter, page, pageSize, communityFilter])
+  }, [communityFilter])
 
   const fetchCommunities = useCallback(async () => {
     try {
-      const res = await getCommunities()
-      setCommunities(res)
+      const rows = await getCommunities()
+      setCommunities(rows || [])
     } catch {
-      setCommunities([
-        { id: 1, name: '幸福社区', province: '湖南省', city: '张家界市' },
-        { id: 2, name: '阳光社区', province: '湖南省', city: '张家界市' },
-        { id: 3, name: '和谐社区', province: '湖南省', city: '张家界市' },
-      ])
+      setCommunities([])
     }
   }, [])
+
+  const fetchRelationData = useCallback(async () => {
+    setRelationLoading(true)
+    try {
+      const [familyRows, relationRows] = await Promise.all([
+        getFamilies({ page: 1, page_size: 500 }),
+        getFamilyRelationships(),
+      ])
+      setFamilies(Array.isArray(familyRows) ? familyRows : [])
+      setRelations(Array.isArray(relationRows) ? relationRows : [])
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '加载家属绑定数据失败')
+      setFamilies([])
+      setRelations([])
+    } finally {
+      setRelationLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchElders()
+  }, [fetchElders])
 
   useEffect(() => {
     fetchCommunities()
   }, [fetchCommunities])
 
   useEffect(() => {
-    fetchElders()
-  }, [fetchElders])
+    const loadQueueFilter = async () => {
+      if (queueFilter !== 'reassessment_due') {
+        setQueueElderIdSet(new Set())
+        return
+      }
+      try {
+        const queues = await getDashboardWorkbenchQueues(500)
+        const idSet = new Set<number>()
+        ;(queues.reassessment_due || []).forEach((item) => {
+          if (typeof item.elder_id === 'number') idSet.add(item.elder_id)
+        })
+        setQueueElderIdSet(idSet)
+      } catch {
+        setQueueElderIdSet(new Set())
+      }
+    }
+    loadQueueFilter()
+  }, [queueFilter])
 
-  const handleSearch = () => {
-    setPage(1)
-  }
+  const filteredRows = useMemo(() => {
+    const keyword = searchName.trim().toLowerCase()
+    let result = elders
+    if (queueFilter === 'reassessment_due') {
+      result = result.filter((item) => queueElderIdSet.has(item.id))
+    }
+    if (!keyword) return result
+    return result.filter((item) =>
+      `${item.name || ''}${item.phone || ''}`.toLowerCase().includes(keyword)
+    )
+  }, [elders, queueFilter, queueElderIdSet, searchName])
 
   const handleReset = () => {
     setSearchName('')
     setCommunityFilter(undefined)
-    setPage(1)
+  }
+
+  const clearQueueFilter = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('queue')
+    setSearchParams(next)
+  }
+
+  const openBindModal = async () => {
+    setBindModalOpen(true)
+    await fetchRelationData()
+  }
+
+  const handleCreateRelation = async () => {
+    try {
+      const values = await bindForm.validateFields()
+      await createFamilyRelationship({
+        elder_id: values.elder_id,
+        family_id: values.family_id,
+        relationship: values.relationship,
+        notify_level: values.notify_level ?? 1,
+        is_primary: Boolean(values.is_primary),
+      })
+      message.success('绑定成功')
+      bindForm.resetFields()
+      fetchRelationData()
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message)
+      }
+    }
+  }
+
+  const handleDeleteRelation = async (relationId: number) => {
+    try {
+      await deleteFamilyRelationship(relationId)
+      message.success('解绑成功')
+      fetchRelationData()
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '解绑失败')
+    }
   }
 
   const columns: ColumnsType<ElderRow> = [
     {
       title: '老人信息',
       key: 'info',
-      width: 200,
-      render: (_, record) => (
+      width: 230,
+      render: (_, row) => (
         <Space>
-          <Avatar
-            style={{
-              background: record.gender === 'female' ? '#ffadd2' : '#bae0ff',
-              color: record.gender === 'female' ? '#c41d7f' : '#0958d9',
-              fontWeight: 700,
-            }}
-            size={36}
-          >
-            {record.name?.[0] || '?'}
-          </Avatar>
+          <Avatar style={{ background: '#e6f4ff', color: '#1677ff', fontWeight: 700 }}>{row.name?.[0] || '?'}</Avatar>
           <div>
-            <div style={{ fontWeight: 600, color: '#1a1a2e' }}>{record.name}</div>
-            <div style={{ fontSize: 12, color: '#999' }}>
-              {genderMap[record.gender || ''] || '-'} · {record.phone || '-'}
-            </div>
+            <div style={{ fontWeight: 600 }}>{row.name}</div>
+            <Text type="secondary" style={{ fontSize: 12 }}>{genderMap[row.gender || ''] || '-'} · {row.phone || '-'}</Text>
           </div>
         </Space>
       ),
     },
     {
       title: '年龄',
-      dataIndex: 'birth_date',
       key: 'age',
       width: 80,
       align: 'center',
-      render: (birthDate) => (
-        <Text>{calculateAge(birthDate)} {birthDate ? '岁' : ''}</Text>
-      ),
+      render: (_, row) => calcAge(row.birth_date),
     },
     {
       title: '文化程度',
       dataIndex: 'education_years',
       key: 'education',
-      width: 100,
+      width: 110,
       align: 'center',
-      render: (years) => <Tag color="blue" style={{ borderRadius: 10 }}>{educationLabel(years)}</Tag>,
+      render: (years) => <Tag color="blue">{educationLabel(years)}</Tag>,
     },
     {
       title: '所属社区',
       dataIndex: 'community_name',
-      key: 'community',
-      width: 140,
-      render: (name) => (
-        <Space>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: '#1677ff',
-              display: 'inline-block',
-            }}
-          />
-          {name || '-'}
-        </Space>
-      ),
+      key: 'community_name',
+      width: 160,
+      render: (value) => value || '-',
     },
     {
       title: '最近评估',
       dataIndex: 'last_assessment',
       key: 'last_assessment',
-      width: 130,
+      width: 120,
       align: 'center',
-      render: (date) =>
-        date ? (
-          <Tooltip title={dayjs(date).format('YYYY-MM-DD')}>
-            <Text style={{ fontSize: 13 }}>{dayjs(date).format('MM-DD')}</Text>
-          </Tooltip>
-        ) : (
-          <Text type="secondary">暂无记录</Text>
-        ),
+      render: (date) => (date ? dayjs(date).format('MM-DD') : <Text type="secondary">暂无</Text>),
     },
     {
-      title: '风险状态',
+      title: '风险等级',
       dataIndex: 'risk_level',
       key: 'risk_level',
       width: 120,
       align: 'center',
-      render: (riskLevel) =>
-        riskLevel ? (
-          <RiskBadge riskLevel={riskLevel} />
-        ) : (
-          <Tag color="default" style={{ borderRadius: 10 }}>未评估</Tag>
-        ),
-    },
-    {
-      title: '加入时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 110,
-      align: 'center',
-      render: (date) => <Text style={{ fontSize: 12, color: '#999' }}>{dayjs(date).format('YYYY-MM-DD')}</Text>,
+      render: (risk) => (risk ? <RiskBadge riskLevel={risk} /> : <Tag>未评估</Tag>),
     },
     {
       title: '操作',
       key: 'actions',
-      width: 100,
+      width: 120,
       align: 'center',
       fixed: 'right',
-      render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => navigate(`/elders/${record.id}`)}
-          style={{ padding: 0 }}
-        >
+      render: (_, row) => (
+        <Button type="link" icon={<EyeOutlined />} onClick={() => navigate(`/elders/${row.id}`)}>
           查看详情
+        </Button>
+      ),
+    },
+  ]
+
+  const relationColumns: ColumnsType<FamilyRelationship> = [
+    { title: '老人', dataIndex: 'elder_name', key: 'elder_name', render: (_, row) => row.elder_name || `#${row.elder_id}` },
+    { title: '家属', dataIndex: 'family_name', key: 'family_name', render: (_, row) => row.family_name || `#${row.family_id}` },
+    { title: '关系', dataIndex: 'relationship', key: 'relationship' },
+    { title: '通知级别', dataIndex: 'notify_level', key: 'notify_level', width: 100 },
+    {
+      title: '主联系人',
+      dataIndex: 'is_primary',
+      key: 'is_primary',
+      width: 100,
+      render: (v: boolean) => (v ? <Tag color="green">是</Tag> : <Tag>否</Tag>),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 90,
+      render: (_, row) => (
+        <Button danger type="link" icon={<DeleteOutlined />} onClick={() => handleDeleteRelation(row.id)}>
+          解绑
         </Button>
       ),
     },
@@ -265,79 +297,109 @@ export default function EldersPage() {
     <div>
       <div style={{ marginBottom: 20 }}>
         <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>老人管理</Title>
-        <Text type="secondary">共 {total} 位注册老人</Text>
+        <Text type="secondary">共 {filteredRows.length} 位老人</Text>
       </div>
 
-      <Card
-        style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: '20px 24px' }}
-      >
-        {/* Filter Bar */}
+      <Card style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '20px 24px' }}>
         <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
           <Col xs={24} sm={8} md={6}>
             <Input
-              placeholder="搜索老人姓名"
+              placeholder="搜索老人姓名/手机号"
               prefix={<SearchOutlined style={{ color: '#bbb' }} />}
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              onPressEnter={handleSearch}
               allowClear
-              style={{ borderRadius: 8 }}
             />
           </Col>
           <Col xs={24} sm={8} md={6}>
             <Select
               placeholder="选择社区"
-              style={{ width: '100%', borderRadius: 8 }}
+              style={{ width: '100%' }}
               allowClear
               value={communityFilter}
-              onChange={(val) => {
-                setCommunityFilter(val)
-                setPage(1)
-              }}
+              onChange={(val) => setCommunityFilter(val)}
               options={communities.map((c) => ({ label: c.name, value: c.id }))}
             />
           </Col>
-          <Col xs={24} sm={8} md={6}>
+          <Col>
             <Space>
-              <Button
-                type="primary"
-                icon={<SearchOutlined />}
-                onClick={handleSearch}
-                style={{ borderRadius: 8 }}
-              >
-                搜索
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={handleReset}
-                style={{ borderRadius: 8 }}
-              >
-                重置
-              </Button>
+              <Button type="primary" icon={<SearchOutlined />} onClick={fetchElders}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+              {queueFilter === 'reassessment_due' && (
+                <Button onClick={clearQueueFilter}>取消待复评筛选</Button>
+              )}
+              <Button icon={<LinkOutlined />} onClick={openBindModal}>家属绑定管理</Button>
             </Space>
           </Col>
         </Row>
 
+        {queueFilter === 'reassessment_due' && (
+          <div style={{ marginBottom: 12 }}>
+            <Tag color="gold">当前为工作台跳转：待复评队列</Tag>
+          </div>
+        )}
+
         <Table
           columns={columns}
-          dataSource={elders}
+          dataSource={filteredRows}
           rowKey="id"
           loading={loading}
-          scroll={{ x: 900 }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: (p) => setPage(p),
-            showSizeChanger: false,
-            showTotal: (t) => `共 ${t} 条记录`,
-            style: { marginBottom: 0 },
-          }}
-          rowClassName={() => 'table-row-hover'}
-          style={{ borderRadius: 8, overflow: 'hidden' }}
+          scroll={{ x: 980 }}
+          pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条记录` }}
         />
       </Card>
+
+      <Modal
+        title="家属绑定管理"
+        open={bindModalOpen}
+        onCancel={() => setBindModalOpen(false)}
+        footer={null}
+        width={980}
+      >
+        <Card size="small" style={{ marginBottom: 12 }}>
+          <Form form={bindForm} layout="inline">
+            <Form.Item name="elder_id" rules={[{ required: true, message: '请选择老人' }]}>
+              <Select
+                style={{ width: 190 }}
+                placeholder="选择老人"
+                options={elders.map((item) => ({ label: item.name, value: item.id }))}
+              />
+            </Form.Item>
+            <Form.Item name="family_id" rules={[{ required: true, message: '请选择家属' }]}>
+              <Select
+                style={{ width: 190 }}
+                placeholder="选择家属"
+                options={families.map((item) => ({ label: item.name, value: item.id }))}
+              />
+            </Form.Item>
+            <Form.Item name="relationship" initialValue="daughter" rules={[{ required: true, message: '请输入关系' }]}>
+              <Input style={{ width: 150 }} placeholder="daughter/son/spouse" />
+            </Form.Item>
+            <Form.Item name="notify_level" initialValue={1}>
+              <Select
+                style={{ width: 140 }}
+                options={[
+                  { label: '全部提醒', value: 1 },
+                  { label: '高风险提醒', value: 2 },
+                  { label: '不提醒', value: 3 },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" onClick={handleCreateRelation}>新增绑定</Button>
+            </Form.Item>
+          </Form>
+        </Card>
+
+        <Table
+          size="small"
+          rowKey="id"
+          loading={relationLoading}
+          columns={relationColumns}
+          dataSource={relations}
+          pagination={{ pageSize: 8 }}
+        />
+      </Modal>
     </div>
   )
 }

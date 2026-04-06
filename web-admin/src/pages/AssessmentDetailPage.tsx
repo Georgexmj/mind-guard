@@ -14,15 +14,18 @@ import {
   Table,
   Tag,
   Typography,
+  Modal,
+  message,
 } from 'antd'
 import { ArrowLeftOutlined, BarChartOutlined, BulbOutlined, UserOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 
-import { getSessionDetail } from '../services/api'
+import { downloadDoctorReportPdf, getFamilyReadableReport, getSessionDetail } from '../services/api'
 import type { AssessmentResult, AssessmentSession, DomainScores } from '../types'
 import RiskBadge from '../components/RiskBadge'
 import CognitiveRadar from '../components/CognitiveRadar'
+import { useAuthStore } from '../store/auth'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -109,9 +112,21 @@ const statusConfig: Record<string, { text: string; color: string }> = {
 export default function AssessmentDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
+  const user = useAuthStore((state) => state.user)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionDetail | null>(null)
+  const [familyReportOpen, setFamilyReportOpen] = useState(false)
+  const [familyReportLoading, setFamilyReportLoading] = useState(false)
+  const [familyReport, setFamilyReport] = useState<{
+    summary: string
+    plain_interpretation: string
+    next_reassessment_date?: string
+    risk_change?: string
+    daily_tips: string[]
+    warning_signs: string[]
+  } | null>(null)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -171,11 +186,54 @@ export default function AssessmentDetailPage() {
     )
   }
 
+  const canExportDoctorPdf = user?.role === 'admin' || user?.role === 'doctor'
+
+  const handleDownloadDoctorPdf = async () => {
+    if (!sessionId) return
+    try {
+      setDownloadingPdf(true)
+      const blob = await downloadDoctorReportPdf(Number(sessionId))
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `mindguard_doctor_report_session_${sessionId}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      message.success('医生报告 PDF 已下载')
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '下载医生报告失败')
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
+
+  const handleOpenFamilyReport = async () => {
+    if (!sessionId) return
+    try {
+      setFamilyReportLoading(true)
+      const payload = await getFamilyReadableReport(Number(sessionId))
+      setFamilyReport(payload)
+      setFamilyReportOpen(true)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '获取家属报告失败')
+    } finally {
+      setFamilyReportLoading(false)
+    }
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           返回
+        </Button>
+        {canExportDoctorPdf && (
+          <Button loading={downloadingPdf} onClick={handleDownloadDoctorPdf}>
+            导出医生PDF
+          </Button>
+        )}
+        <Button loading={familyReportLoading} onClick={handleOpenFamilyReport}>
+          家属可读版
         </Button>
         <div>
           <Title level={4} style={{ margin: 0 }}>
@@ -443,6 +501,39 @@ export default function AssessmentDetailPage() {
           </Card>
         </>
       )}
+
+      <Modal
+        title="家属可读版报告"
+        open={familyReportOpen}
+        onCancel={() => setFamilyReportOpen(false)}
+        footer={null}
+        width={720}
+      >
+        {!familyReport ? (
+          <Spin />
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Alert type="info" showIcon message={familyReport.summary} />
+            <Paragraph>{familyReport.plain_interpretation}</Paragraph>
+            <Text strong>风险变化：{familyReport.risk_change || 'unknown'}</Text>
+            <Text strong>建议下次复评：{familyReport.next_reassessment_date || '-'}</Text>
+            <Divider />
+            <Text strong>日常建议</Text>
+            {familyReport.daily_tips.map((item, index) => (
+              <Paragraph key={`tip-${index}`} style={{ marginBottom: 4 }}>
+                {index + 1}. {item}
+              </Paragraph>
+            ))}
+            <Divider />
+            <Text strong>出现以下信号请及时就医</Text>
+            {familyReport.warning_signs.map((item, index) => (
+              <Paragraph key={`warn-${index}`} style={{ marginBottom: 4 }}>
+                {index + 1}. {item}
+              </Paragraph>
+            ))}
+          </Space>
+        )}
+      </Modal>
     </div>
   )
 }

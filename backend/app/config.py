@@ -45,10 +45,30 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: List[str] = [
+        "https://admin.zhouchao5563.online",
+        "https://h5.zhouchao5563.online",
+        "https://api.zhouchao5563.online",
+        "https://servicewechat.com",
         "http://localhost:5173",
         "http://localhost:3000",
-        "https://servicewechat.com",
+        "http://localhost",
+        "http://127.0.0.1",
     ]
+
+    # WeChat subscription message (optional; mock-mode when missing)
+    WECHAT_MP_APPID: str = ""
+    WECHAT_MP_SECRET: str = ""
+    WECHAT_TEMPLATE_ID_ADHERENCE: str = ""
+    WECHAT_TEMPLATE_ID_REASSESSMENT: str = ""
+    WECHAT_MINIPROGRAM_PAGE: str = "pages/index/index"
+    WECHAT_MOCK_MODE: bool = True
+
+    # Reminder scheduling (Celery Beat)
+    CELERY_BEAT_ENABLED: bool = True
+    CELERY_BEAT_ADHERENCE_INTERVAL_MINUTES: int = 30
+    CELERY_BEAT_ADHERENCE_DUE_ONLY: bool = True
+    CELERY_BEAT_REASSESSMENT_INTERVAL_MINUTES: int = 120
+    CELERY_BEAT_REASSESSMENT_WITHIN_DAYS: int = 7
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

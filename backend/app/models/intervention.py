@@ -25,6 +25,13 @@ class PlanStatus(str, enum.Enum):
     cancelled = "cancelled"
 
 
+class TicketStatus(str, enum.Enum):
+    open = "open"
+    in_progress = "in_progress"
+    resolved = "resolved"
+    ignored = "ignored"
+
+
 class InterventionPlan(Base):
     __tablename__ = "intervention_plans"
 
@@ -66,3 +73,33 @@ class InterventionRecord(Base):
 
     plan  = relationship("InterventionPlan", back_populates="records")
     elder = relationship("User", foreign_keys=[elder_id])
+
+
+class InterventionAdherenceTicket(Base):
+    """
+    Trackable doctor/admin workflow for adherence alerts.
+    """
+
+    __tablename__ = "intervention_adherence_tickets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    plan_id = Column(Integer, ForeignKey("intervention_plans.id"), nullable=False, index=True)
+    elder_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(SAEnum(TicketStatus), default=TicketStatus.open, nullable=False, index=True)
+    owner_doctor_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    reminder_at = Column(DateTime, nullable=True)
+    followup_note = Column(Text, nullable=True)
+
+    consecutive_missed_days = Column(Integer, nullable=False, default=0)
+    completion_rate = Column(Float, nullable=False, default=0.0)
+    latest_interruption_reason = Column(String(300), nullable=True)
+    risk_level = Column(String(30), nullable=True)
+
+    resolved_at = Column(DateTime, nullable=True)
+    last_notified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    plan = relationship("InterventionPlan", foreign_keys=[plan_id])
+    elder = relationship("User", foreign_keys=[elder_id])
+    owner_doctor = relationship("User", foreign_keys=[owner_doctor_id])

@@ -1,48 +1,7 @@
-﻿import { useAuthStore } from '../store/auth'
+﻿import { getApiBaseUrlCandidates, setApiBaseUrl } from '../config/api'
+import { useAuthStore } from '../store/auth'
 
-const API_BASE_URL_STORAGE_KEY = 'mindguard_api_base_url'
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:30001/api/v1'
-const FALLBACK_API_BASE_URLS = ['http://127.0.0.1:8000/api/v1']
-const ENV_API_BASE_URL =
-  (typeof process !== 'undefined' && process.env && (process.env.UNI_API_BASE_URL || process.env.VITE_API_BASE_URL)) || ''
-
-function normalizeBaseUrl(url) {
-  if (!url || typeof url !== 'string') return ''
-  return url.trim().replace(/\/+$/, '')
-}
-
-function uniqBaseUrls(urls) {
-  const seen = new Set()
-  const list = []
-  urls.forEach((url) => {
-    const normalized = normalizeBaseUrl(url)
-    if (!normalized || seen.has(normalized)) return
-    seen.add(normalized)
-    list.push(normalized)
-  })
-  return list
-}
-
-export function getApiBaseUrlCandidates() {
-  const stored = normalizeBaseUrl(uni.getStorageSync(API_BASE_URL_STORAGE_KEY))
-  const envUrl = normalizeBaseUrl(ENV_API_BASE_URL)
-  return uniqBaseUrls([stored, envUrl, DEFAULT_API_BASE_URL, ...FALLBACK_API_BASE_URLS])
-}
-
-export function getApiBaseUrl() {
-  const candidates = getApiBaseUrlCandidates()
-  return candidates[0] || normalizeBaseUrl(DEFAULT_API_BASE_URL)
-}
-
-export function setApiBaseUrl(url) {
-  const normalized = normalizeBaseUrl(url)
-  if (!normalized) {
-    uni.removeStorageSync(API_BASE_URL_STORAGE_KEY)
-    return ''
-  }
-  uni.setStorageSync(API_BASE_URL_STORAGE_KEY, normalized)
-  return normalized
-}
+export { getApiBaseUrl, getApiBaseUrlCandidates, setApiBaseUrl } from '../config/api'
 
 function parseHttpError(res) {
   const detail = res?.data?.detail
@@ -164,7 +123,32 @@ export const api = {
     return request({ url: `/interventions/recommendations/top5${suffix}` })
   },
 
+  getInterventionMyProgress: () => request({ url: '/interventions/my-progress' }),
+
+  dailyInterventionCheckin: (payload) =>
+    request({
+      url: '/interventions/daily-checkin',
+      method: 'POST',
+      data: payload,
+    }),
+
+  getAssessmentTrend: (params = {}) => {
+    const query = Object.entries(params)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      .join('&')
+    const suffix = query ? `?${query}` : ''
+    return request({ url: `/assessments/trend${suffix}` })
+  },
+
   getProfile: () => request({ url: '/auth/me' }),
 
   updateProfile: (userId, data) => request({ url: `/users/${userId}`, method: 'PUT', data }),
+
+  bindWechatByCode: (data) =>
+    request({
+      url: '/users/wechat-bindings/by-code',
+      method: 'POST',
+      data,
+    }),
 }

@@ -16,14 +16,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.core.security import hash_password
 from app.database import Base, SessionLocal, engine
 from app.models.assessment import Question, QuestionDomain, QuestionType
-from app.models.user import Community, User, UserRole
+from app.models.user import Community, User, UserRelationship, UserRole
 from app.question_bank_data import QUESTION_BANK
 from app.question_bank_extra_data import EXTRA_QUESTION_BANK
 
-import app.models.assessment  # noqa: F401  (register models)
-import app.models.intervention  # noqa: F401  (register models)
-import app.models.notification  # noqa: F401  (register models)
-import app.models.user  # noqa: F401  (register models)
+import app.models.assessment  # noqa: F401 (register models)
+import app.models.intervention  # noqa: F401 (register models)
+import app.models.notification  # noqa: F401 (register models)
+import app.models.user  # noqa: F401 (register models)
 
 
 def _normalize_text(value: str) -> str:
@@ -82,6 +82,15 @@ def seed_users(db, community_id: int) -> None:
             "role": UserRole.elder,
             "password": "elder123",
         },
+        {
+            "phone": "13800000004",
+            "name": "李女士",
+            "gender": "female",
+            "birth_date": date(1978, 3, 9),
+            "education_years": 12,
+            "role": UserRole.family,
+            "password": "family123",
+        },
     ]
 
     for item in users_to_seed:
@@ -102,6 +111,32 @@ def seed_users(db, community_id: int) -> None:
             print(f"  Created {item['role'].value} user: {item['phone']} / {item['password']}")
         else:
             print(f"  User already exists: {item['phone']} ({item['role'].value})")
+
+    # SessionLocal uses autoflush=False; flush pending inserts before relationship queries.
+    db.flush()
+
+    elder = db.query(User).filter(User.phone == "13800000003", User.role == UserRole.elder).first()
+    family = db.query(User).filter(User.phone == "13800000004", User.role == UserRole.family).first()
+    if elder and family:
+        relation = (
+            db.query(UserRelationship)
+            .filter(
+                UserRelationship.elder_id == elder.id,
+                UserRelationship.family_id == family.id,
+            )
+            .first()
+        )
+        if relation is None:
+            db.add(
+                UserRelationship(
+                    elder_id=elder.id,
+                    family_id=family.id,
+                    relationship="daughter",
+                    notify_level=1,
+                    is_primary=True,
+                )
+            )
+            print("  Created family relationship: 13800000004 -> 13800000003")
 
 
 def seed_question_bank(db) -> Tuple[int, int, Dict[str, int]]:

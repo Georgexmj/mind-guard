@@ -126,3 +126,33 @@ class PauseResumeOut(BaseModel):
     message: str
     pause_deadline: Optional[datetime] = None
     is_resumable: Optional[bool] = None
+
+
+class TrendPointOut(BaseModel):
+    session_id: int
+    assessed_at: datetime
+    mmse_score: Optional[float] = None
+    moca_score_corrected: Optional[float] = None
+    risk_level: str
+
+
+class AssessmentTrendOut(BaseModel):
+    elder_id: int
+    points: List[TrendPointOut]
+    latest_risk_level: Optional[str] = None
+    previous_risk_level: Optional[str] = None
+    risk_change: str = "unknown"
+    next_reassessment_date: Optional[str] = None
+
+
+class FamilyReadableReportOut(BaseModel):
+    elder_id: int
+    session_id: int
+    assessed_at: datetime
+    risk_level: str
+    risk_change: str = "unknown"
+    next_reassessment_date: Optional[str] = None
+    summary: str
+    plain_interpretation: str
+    daily_tips: List[str]
+    warning_signs: List[str]

@@ -63,6 +63,7 @@ class User(Base):
         foreign_keys="UserRelationship.family_id",
         back_populates="family_member",
     )
+    wechat_bindings = orm_relationship("WechatBinding", back_populates="user")
 
 
 class UserRelationship(Base):
@@ -79,3 +80,18 @@ class UserRelationship(Base):
     # Relationships
     elder = orm_relationship("User", foreign_keys=[elder_id], back_populates="elder_relationships")
     family_member = orm_relationship("User", foreign_keys=[family_id], back_populates="family_relationships")
+
+
+class WechatBinding(Base):
+    __tablename__ = "wechat_bindings"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    openid = Column(String(100), nullable=False, unique=True, index=True)
+    unionid = Column(String(100), nullable=True, index=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = orm_relationship("User", back_populates="wechat_bindings")

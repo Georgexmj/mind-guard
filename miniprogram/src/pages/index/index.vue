@@ -55,6 +55,36 @@
       <text class="feature-arrow">›</text>
     </view>
 
+    <view class="feature-entry" @tap="goToInterventionCheckin">
+      <view class="feature-icon-box" style="background: linear-gradient(135deg, #52C41A, #389E0D);">
+        <text class="feature-icon">✅</text>
+      </view>
+      <view class="feature-main">
+        <text class="feature-title">每日干预打卡</text>
+        <text class="feature-desc">完成训练后记录打卡，医生可跟进依从性</text>
+      </view>
+      <text class="feature-arrow">›</text>
+    </view>
+
+    <view class="trend-card">
+      <view class="trend-head">
+        <text class="trend-title">复评与趋势追踪</text>
+        <text class="trend-next">下次复评：{{ trendNextDate }}</text>
+      </view>
+      <view class="trend-meta">
+        <text class="trend-meta-item">风险变化：{{ trendChangeLabel }}</text>
+        <text class="trend-meta-item">最新风险：{{ trendRiskLabel }}</text>
+      </view>
+      <view v-if="trendPoints.length > 0" class="trend-list">
+        <view v-for="point in trendPoints" :key="point.session_id" class="trend-item">
+          <text class="trend-date">{{ formatTrendDate(point.assessed_at) }}</text>
+          <text class="trend-score">MMSE {{ point.mmse_score ?? '--' }}</text>
+          <text class="trend-score">MoCA {{ point.moca_score_corrected ?? '--' }}</text>
+        </view>
+      </view>
+      <text v-else class="trend-empty">暂无趋势数据，完成两次评估后会显示变化趋势。</text>
+    </view>
+
     <!-- Recent Assessments -->
     <view class="section">
       <view class="section-header">
@@ -138,6 +168,7 @@ const authStore = useAuthStore()
 const recentSessions = ref([])
 const loadingSessions = ref(false)
 const allSessionCount = ref(0)
+const trendSummary = ref(null)
 
 // Computed
 const avatarLetter = computed(() => {
@@ -173,6 +204,30 @@ const daysSinceLastAssess = computed(() => {
   const diff = Date.now() - new Date(last).getTime()
   return Math.floor(diff / (1000 * 60 * 60 * 24))
 })
+
+const trendPoints = computed(() => {
+  const points = Array.isArray(trendSummary.value?.points) ? trendSummary.value.points : []
+  return points.slice(-5)
+})
+
+const trendRiskLabel = computed(() => {
+  const level = trendSummary.value?.latest_risk_level
+  if (!level) return '--'
+  return getRiskLabel(level)
+})
+
+const trendChangeLabel = computed(() => {
+  const change = trendSummary.value?.risk_change
+  const labels = {
+    improved: '较上次改善',
+    stable: '与上次持平',
+    worsened: '较上次加重',
+    unknown: '暂无对比',
+  }
+  return labels[change] || '暂无对比'
+})
+
+const trendNextDate = computed(() => trendSummary.value?.next_reassessment_date || '--')
 
 const healthTips = [
   {
@@ -301,12 +356,22 @@ function formatDate(dateStr) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function formatTrendDate(dateStr) {
+  if (!dateStr) return '--'
+  const d = new Date(dateStr)
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+}
+
 function goToAssessment() {
   uni.navigateTo({ url: '/pages/assessment/start/index' })
 }
 
 function goToInterventionTop5() {
   uni.navigateTo({ url: '/pages/intervention/top5/index' })
+}
+
+function goToInterventionCheckin() {
+  uni.navigateTo({ url: '/pages/intervention/checkin/index' })
 }
 
 function goToProfile() {
@@ -339,14 +404,26 @@ async function loadSessions() {
   }
 }
 
+async function loadTrend() {
+  try {
+    const data = await api.getAssessmentTrend()
+    trendSummary.value = data || null
+  } catch (err) {
+    console.warn('Load trend error:', err)
+    trendSummary.value = null
+  }
+}
+
 onShow(() => {
   if (!authStore.enforceElderRole()) return
   loadSessions()
+  loadTrend()
 })
 
 onMounted(() => {
   if (!authStore.enforceElderRole()) return
   loadSessions()
+  loadTrend()
 })
 </script>
 
@@ -539,6 +616,74 @@ onMounted(() => {
 .feature-arrow {
   font-size: 44rpx;
   color: #9ab6cf;
+}
+
+.trend-card {
+  margin: 0 30rpx 20rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 22rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.trend-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.trend-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #1f2d3d;
+}
+
+.trend-next {
+  font-size: 24rpx;
+  color: #6b7785;
+}
+
+.trend-meta {
+  display: flex;
+  gap: 18rpx;
+  margin-bottom: 10rpx;
+}
+
+.trend-meta-item {
+  font-size: 24rpx;
+  color: #4a6b8a;
+}
+
+.trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.trend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f7fbff;
+  border-radius: 12rpx;
+  padding: 10rpx 12rpx;
+}
+
+.trend-date {
+  font-size: 24rpx;
+  color: #4A90D9;
+  min-width: 90rpx;
+}
+
+.trend-score {
+  font-size: 24rpx;
+  color: #516172;
+}
+
+.trend-empty {
+  font-size: 24rpx;
+  color: #8c9bab;
 }
 
 /* Section */

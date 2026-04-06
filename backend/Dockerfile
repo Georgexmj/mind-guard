@@ -16,8 +16,9 @@ COPY requirements.txt .
 
 # 使用清华 PyPI 镜像加速安装
 RUN pip install --no-cache-dir -r requirements.txt \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple/ \
-    --trusted-host pypi.tuna.tsinghua.edu.cn
+    -i https://pypi.org/simple \
+    --trusted-host pypi.org \
+    --trusted-host files.pythonhosted.org
 
 COPY . .
 

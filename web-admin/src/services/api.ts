@@ -1,12 +1,19 @@
 import axios from 'axios'
 import type {
+  AdherenceTicket,
   User,
   Community,
   AssessmentSession,
   AssessmentResult,
+  AssessmentTrend,
+  FamilyRelationship,
+  FamilyReadableReport,
+  WechatBinding,
   TokenResponse,
+  WorkbenchQueues,
   DashboardStats,
   NotificationItem,
+  InterventionAdherenceAlert,
   InterventionTop5Recommendation,
 } from '../types'
 
@@ -66,8 +73,72 @@ export const getElders = async (params?: {
   return response.data
 }
 
+export const getFamilies = async (params?: {
+  page?: number
+  page_size?: number
+}): Promise<User[]> => {
+  const response = await apiClient.get<User[]>('/users', {
+    params: { role: 'family', ...params },
+  })
+  return response.data
+}
+
+export const getDoctors = async (params?: {
+  page?: number
+  page_size?: number
+}): Promise<User[]> => {
+  const response = await apiClient.get<User[]>('/users', {
+    params: { role: 'doctor', ...params },
+  })
+  return response.data
+}
+
 export const getElderById = async (userId: number): Promise<User> => {
   const response = await apiClient.get<User>(`/users/${userId}`)
+  return response.data
+}
+
+export const createFamilyRelationship = async (data: {
+  elder_id: number
+  family_id: number
+  relationship: string
+  notify_level?: number
+  is_primary?: boolean
+}): Promise<Record<string, unknown>> => {
+  const response = await apiClient.post('/users/bind-family', data)
+  return response.data
+}
+
+export const getFamilyRelationships = async (params?: {
+  elder_id?: number
+  family_id?: number
+}): Promise<FamilyRelationship[]> => {
+  const response = await apiClient.get<FamilyRelationship[]>('/users/family-relationships', { params })
+  return response.data
+}
+
+export const deleteFamilyRelationship = async (relationId: number): Promise<{ deleted_id: number; message: string }> => {
+  const response = await apiClient.delete<{ deleted_id: number; message: string }>(`/users/family-relationships/${relationId}`)
+  return response.data
+}
+
+export const getWechatBindings = async (params?: { user_id?: number }): Promise<WechatBinding[]> => {
+  const response = await apiClient.get<WechatBinding[]>('/users/wechat-bindings', { params })
+  return response.data
+}
+
+export const upsertWechatBinding = async (data: {
+  user_id: number
+  openid: string
+  unionid?: string
+  is_active?: boolean
+}): Promise<WechatBinding> => {
+  const response = await apiClient.post<WechatBinding>('/users/wechat-bindings', data)
+  return response.data
+}
+
+export const removeWechatBinding = async (bindingId: number): Promise<{ deleted_id: number; message: string }> => {
+  const response = await apiClient.delete<{ deleted_id: number; message: string }>(`/users/wechat-bindings/${bindingId}`)
   return response.data
 }
 
@@ -162,6 +233,119 @@ export const getInterventionTop5Recommendations = async (params?: {
   return response.data
 }
 
+export const createInterventionPlanFromTop5 = async (data: {
+  elder_id?: number
+  session_id?: number
+  recommendation_code: string
+  duration_days?: number
+  start_date?: string
+}): Promise<unknown> => {
+  const response = await apiClient.post('/interventions/recommendations/top5/create-plan', data)
+  return response.data
+}
+
+export const getInterventionAdherenceAlerts = async (params?: {
+  days?: number
+  threshold?: number
+  elder_id?: number
+  sync_ticket?: boolean
+}): Promise<InterventionAdherenceAlert[]> => {
+  const response = await apiClient.get<InterventionAdherenceAlert[]>('/interventions/adherence-alerts', { params })
+  return response.data
+}
+
+export const syncAdherenceTickets = async (params?: {
+  days?: number
+  threshold?: number
+  elder_id?: number
+}): Promise<{ generated_count: number; open_count: number; in_progress_count: number; resolved_count: number }> => {
+  const response = await apiClient.post('/interventions/adherence-tickets/sync', null, { params })
+  return response.data
+}
+
+export const getAdherenceTickets = async (params?: {
+  status?: string
+  owner_doctor_id?: number
+  elder_id?: number
+  page?: number
+  page_size?: number
+}): Promise<AdherenceTicket[]> => {
+  const response = await apiClient.get<AdherenceTicket[]>('/interventions/adherence-tickets', { params })
+  return response.data
+}
+
+export const updateAdherenceTicket = async (
+  ticketId: number,
+  data: {
+    status?: 'open' | 'in_progress' | 'resolved' | 'ignored'
+    owner_doctor_id?: number
+    reminder_at?: string
+    followup_note?: string
+  }
+): Promise<AdherenceTicket> => {
+  const response = await apiClient.put<AdherenceTicket>(`/interventions/adherence-tickets/${ticketId}`, data)
+  return response.data
+}
+
+export const dispatchAdherenceReminders = async (due_only = true): Promise<{
+  candidate_count: number
+  pushed_count: number
+  skipped_count: number
+  detail: Record<string, unknown>[]
+}> => {
+  const response = await apiClient.post('/interventions/reminders/adherence/dispatch', null, {
+    params: { due_only },
+  })
+  return response.data
+}
+
+export const getAssessmentTrend = async (params?: {
+  elder_id?: number
+  months?: number
+}): Promise<AssessmentTrend> => {
+  const response = await apiClient.get<AssessmentTrend>('/assessments/trend', { params })
+  return response.data
+}
+
+export const downloadDoctorReportPdf = async (sessionId: number): Promise<Blob> => {
+  const response = await apiClient.get(`/assessments/sessions/${sessionId}/doctor-report.pdf`, {
+    responseType: 'blob',
+  })
+  return response.data
+}
+
+export const downloadDoctorReportsBatchZip = async (
+  sessionIds: number[],
+  options?: { hospital_name?: string; doctor_name?: string; signature_text?: string }
+): Promise<Blob> => {
+  const params = new URLSearchParams()
+  sessionIds.forEach((id) => params.append('session_ids', String(id)))
+  if (options?.hospital_name) params.append('hospital_name', options.hospital_name)
+  if (options?.doctor_name) params.append('doctor_name', options.doctor_name)
+  if (options?.signature_text) params.append('signature_text', options.signature_text)
+  const response = await apiClient.get(`/assessments/reports/doctor/batch?${params.toString()}`, {
+    responseType: 'blob',
+  })
+  return response.data
+}
+
+export const getFamilyReadableReport = async (sessionId: number): Promise<FamilyReadableReport> => {
+  const response = await apiClient.get<FamilyReadableReport>(`/assessments/sessions/${sessionId}/family-report`)
+  return response.data
+}
+
+export const dispatchReassessmentReminders = async (within_days = 7): Promise<{
+  candidate_count: number
+  pushed_count: number
+  within_days: number
+  detail: Record<string, unknown>[]
+}> => {
+  const response = await apiClient.post('/assessments/reminders/reassessment/dispatch', null, {
+    params: { within_days },
+  })
+  return response.data
+}
+
 // Questions (admin)
 export const getQuestions = async (params?: {
   domain?: string
@@ -217,6 +401,11 @@ export const getDashboardMonthlyTrend = async (months = 6): Promise<{ month: str
 
 export const getDashboardHighRiskList = async (limit = 10): Promise<unknown[]> => {
   const response = await apiClient.get('/dashboard/high-risk-list', { params: { limit } })
+  return response.data
+}
+
+export const getDashboardWorkbenchQueues = async (limit = 20): Promise<WorkbenchQueues> => {
+  const response = await apiClient.get<WorkbenchQueues>('/dashboard/workbench-queues', { params: { limit } })
   return response.data
 }
 

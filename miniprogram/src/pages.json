@@ -11,7 +11,7 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "MindGuard 认知评估",
+        "navigationBarTitleText": "忆守心安",
         "navigationBarBackgroundColor": "#4A90D9",
         "navigationBarTextStyle": "white"
       }
@@ -65,6 +65,14 @@
       }
     },
     {
+      "path": "pages/intervention/checkin/index",
+      "style": {
+        "navigationBarTitleText": "每日干预打卡",
+        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的",
@@ -95,7 +103,7 @@
   },
   "globalStyle": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "MindGuard",
+    "navigationBarTitleText": "忆守心安",
     "navigationBarBackgroundColor": "#4A90D9",
     "backgroundColor": "#F5F5F5",
     "backgroundTextStyle": "light",

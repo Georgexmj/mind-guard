@@ -5,10 +5,48 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.security import get_current_user
 from app.core.deps import require_role
-from app.models.user import User, UserRole, UserRelationship
-from app.schemas.user import UserOut, UserUpdate, BindFamilyRequest
+from app.models.user import User, UserRole, UserRelationship, WechatBinding
+from app.schemas.user import (
+    BindFamilyRequest,
+    FamilyRelationshipOut,
+    FamilyUnbindOut,
+    UserOut,
+    UserUpdate,
+    WechatBindingByCodeCreate,
+    WechatBindingByCodeOut,
+    WechatBindingOut,
+    WechatBindingUpsert,
+)
+from app.services.wechat_service import exchange_code_for_openid
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
+
+
+def _relation_to_out(row: UserRelationship) -> FamilyRelationshipOut:
+    return FamilyRelationshipOut(
+        id=row.id,
+        elder_id=row.elder_id,
+        elder_name=row.elder.name if row.elder else None,
+        family_id=row.family_id,
+        family_name=row.family_member.name if row.family_member else None,
+        relationship=row.relationship,
+        notify_level=row.notify_level,
+        is_primary=row.is_primary,
+        created_at=row.created_at,
+    )
+
+
+def _wechat_binding_to_out(row: WechatBinding) -> WechatBindingOut:
+    return WechatBindingOut(
+        id=row.id,
+        user_id=row.user_id,
+        openid=row.openid,
+        unionid=row.unionid,
+        is_active=row.is_active,
+        last_sent_at=row.last_sent_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
 
 
 @router.get("/", response_model=List[UserOut])
@@ -55,7 +93,7 @@ def list_elders(
 def bind_family(
     data: BindFamilyRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor, UserRole.family)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor)),
 ):
     """Bind a family member to an elder user."""
     elder = db.query(User).filter(User.id == data.elder_id, User.role == UserRole.elder).first()
@@ -106,6 +144,146 @@ def bind_family(
         "is_primary": relationship.is_primary,
         "message": "Family binding created successfully",
     }
+
+
+@router.get("/family-relationships", response_model=List[FamilyRelationshipOut])
+def list_family_relationships(
+    elder_id: Optional[int] = Query(None),
+    family_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor)),
+):
+    q = db.query(UserRelationship)
+    if elder_id is not None:
+        q = q.filter(UserRelationship.elder_id == elder_id)
+    if family_id is not None:
+        q = q.filter(UserRelationship.family_id == family_id)
+    rows = q.order_by(UserRelationship.created_at.desc()).all()
+    return [_relation_to_out(row) for row in rows]
+
+
+@router.delete("/family-relationships/{relation_id}", response_model=FamilyUnbindOut)
+def unbind_family(
+    relation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor)),
+):
+    row = db.query(UserRelationship).filter(UserRelationship.id == relation_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Family relationship not found")
+    db.delete(row)
+    db.commit()
+    return FamilyUnbindOut(deleted_id=relation_id, message="Family relationship removed")
+
+
+@router.get("/wechat-bindings", response_model=List[WechatBindingOut])
+def list_wechat_bindings(
+    user_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor, UserRole.family, UserRole.elder)),
+):
+    q = db.query(WechatBinding)
+    if current_user.role in (UserRole.admin, UserRole.doctor):
+        if user_id is not None:
+            q = q.filter(WechatBinding.user_id == user_id)
+    else:
+        q = q.filter(WechatBinding.user_id == current_user.id)
+    rows = q.order_by(WechatBinding.created_at.desc()).all()
+    return [_wechat_binding_to_out(row) for row in rows]
+
+
+@router.post("/wechat-bindings", response_model=WechatBindingOut, status_code=status.HTTP_201_CREATED)
+def upsert_wechat_binding(
+    data: WechatBindingUpsert,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor, UserRole.family, UserRole.elder)),
+):
+    if current_user.role not in (UserRole.admin, UserRole.doctor) and data.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only own binding can be updated")
+
+    user = db.query(User).filter(User.id == data.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    row = db.query(WechatBinding).filter(WechatBinding.user_id == data.user_id).first()
+    if row is None:
+        row = WechatBinding(
+            user_id=data.user_id,
+            openid=data.openid.strip(),
+            unionid=(data.unionid or "").strip() or None,
+            is_active=data.is_active,
+        )
+        db.add(row)
+    else:
+        row.openid = data.openid.strip()
+        row.unionid = (data.unionid or "").strip() or None
+        row.is_active = data.is_active
+
+    db.commit()
+    db.refresh(row)
+    return _wechat_binding_to_out(row)
+
+
+@router.post("/wechat-bindings/by-code", response_model=WechatBindingByCodeOut, status_code=status.HTTP_201_CREATED)
+def upsert_wechat_binding_by_code(
+    data: WechatBindingByCodeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor, UserRole.family, UserRole.elder)),
+):
+    if current_user.role not in (UserRole.admin, UserRole.doctor) and data.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only own binding can be updated")
+
+    user = db.query(User).filter(User.id == data.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        wechat_info = exchange_code_for_openid(data.code)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Wechat code exchange failed: {exc}")
+
+    openid = (wechat_info.get("openid") or "").strip()
+    if not openid:
+        raise HTTPException(status_code=400, detail="Wechat openid missing")
+
+    row = db.query(WechatBinding).filter(WechatBinding.user_id == data.user_id).first()
+    if row is None:
+        row = db.query(WechatBinding).filter(WechatBinding.openid == openid).first()
+
+    if row is None:
+        row = WechatBinding(
+            user_id=data.user_id,
+            openid=openid,
+            unionid=(wechat_info.get("unionid") or "").strip() or None,
+            is_active=data.is_active,
+        )
+        db.add(row)
+    else:
+        row.user_id = data.user_id
+        row.openid = openid
+        row.unionid = (wechat_info.get("unionid") or "").strip() or None
+        row.is_active = data.is_active
+
+    db.commit()
+    db.refresh(row)
+    out = _wechat_binding_to_out(row)
+    return WechatBindingByCodeOut(**out.model_dump(), mode=str(wechat_info.get("mode") or "unknown"))
+
+
+@router.delete("/wechat-bindings/{binding_id}", response_model=FamilyUnbindOut)
+def remove_wechat_binding(
+    binding_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor, UserRole.family, UserRole.elder)),
+):
+    row = db.query(WechatBinding).filter(WechatBinding.id == binding_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Wechat binding not found")
+    if current_user.role not in (UserRole.admin, UserRole.doctor) and row.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only own binding can be removed")
+    db.delete(row)
+    db.commit()
+    return FamilyUnbindOut(deleted_id=binding_id, message="Wechat binding removed")
 
 
 @router.get("/{user_id}", response_model=UserOut)

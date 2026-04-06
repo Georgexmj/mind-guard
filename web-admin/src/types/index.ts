@@ -146,3 +146,133 @@ export interface InterventionTop5Recommendation {
   generated_at: string
   recommendations: InterventionRecommendationItem[]
 }
+
+export interface InterventionAdherenceAlert {
+  plan_id: number
+  elder_id: number
+  elder_name?: string
+  plan_title: string
+  ticket_id?: number
+  ticket_status?: 'open' | 'in_progress' | 'resolved' | 'ignored'
+  owner_doctor_id?: number
+  owner_doctor_name?: string
+  reminder_at?: string
+  consecutive_missed_days: number
+  completion_rate: number
+  latest_interruption_reason?: string
+  risk_level?: string
+  suggested_action: string
+}
+
+export interface AssessmentTrendPoint {
+  session_id: number
+  assessed_at: string
+  mmse_score?: number
+  moca_score_corrected?: number
+  risk_level: string
+}
+
+export interface AssessmentTrend {
+  elder_id: number
+  points: AssessmentTrendPoint[]
+  latest_risk_level?: string
+  previous_risk_level?: string
+  risk_change: 'improved' | 'stable' | 'worsened' | 'unknown'
+  next_reassessment_date?: string
+}
+
+export interface FamilyReadableReport {
+  elder_id: number
+  session_id: number
+  assessed_at: string
+  risk_level: string
+  risk_change: 'improved' | 'stable' | 'worsened' | 'unknown'
+  next_reassessment_date?: string
+  summary: string
+  plain_interpretation: string
+  daily_tips: string[]
+  warning_signs: string[]
+}
+
+export interface FamilyRelationship {
+  id: number
+  elder_id: number
+  elder_name?: string
+  family_id: number
+  family_name?: string
+  relationship: string
+  notify_level: number
+  is_primary: boolean
+  created_at: string
+}
+
+export interface WechatBinding {
+  id: number
+  user_id: number
+  openid: string
+  unionid?: string
+  is_active: boolean
+  last_sent_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AdherenceTicket {
+  id: number
+  plan_id: number
+  elder_id: number
+  elder_name?: string
+  plan_title?: string
+  status: 'open' | 'in_progress' | 'resolved' | 'ignored'
+  owner_doctor_id?: number
+  owner_doctor_name?: string
+  reminder_at?: string
+  followup_note?: string
+  consecutive_missed_days: number
+  completion_rate: number
+  latest_interruption_reason?: string
+  risk_level?: string
+  resolved_at?: string
+  last_notified_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WorkbenchQueues {
+  high_risk: Array<{
+    session_id: number
+    elder_id: number
+    elder_name: string
+    phone?: string
+    mmse_score?: number
+    ad_probability?: number
+    assessed_at?: string
+  }>
+  reassessment_due: Array<{
+    elder_id: number
+    elder_name: string
+    session_id: number
+    risk_level: string
+    next_reassessment_date: string
+    days_to_due: number
+  }>
+  low_adherence: Array<{
+    ticket_id: number
+    plan_id: number
+    elder_id: number
+    elder_name?: string
+    plan_title?: string
+    status: string
+    consecutive_missed_days: number
+    completion_rate: number
+    owner_doctor_id?: number
+    owner_doctor_name?: string
+    reminder_at?: string
+    updated_at?: string
+  }>
+  counts: {
+    high_risk: number
+    reassessment_due: number
+    low_adherence: number
+  }
+}

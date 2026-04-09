@@ -157,3 +157,54 @@ docker compose restart backend
 - 当前根目录 `docker-compose.yml` 已包含完整编排，建议统一使用该文件。
 - 为避免与当前后端 ORM 模型冲突，本一键部署流程不依赖 `infrastructure/mysql/init.sql`。
 - 后端容器启动时会执行 `python -m app.initial_data`，自动建表并初始化演示数据。
+
+## 9. Nginx 环境切换
+当前项目提供两套 Nginx 配置文件：
+
+- 开发环境：`nginx/nginx.dev.conf`
+- 生产环境：`nginx/nginx.prod.conf`
+
+通过根目录 `.env` 中的 `NGINX_CONF_FILE` 选择加载哪一套：
+
+```env
+NGINX_CONF_FILE=nginx.dev.conf
+```
+
+生产环境改为：
+
+```env
+NGINX_CONF_FILE=nginx.prod.conf
+```
+
+## 10. 生产环境执行示例
+在生产服务器上，建议在项目根目录 `.env` 中至少设置：
+
+```env
+NGINX_CONF_FILE=nginx.prod.conf
+NGINX_HTTP_PORT=80
+NGINX_HTTPS_PORT=443
+```
+
+然后确认以下证书文件已存在：
+
+```text
+nginx/zhouchao5563.online_nginx/zhouchao5563.online_bundle.pem
+nginx/zhouchao5563.online_nginx/zhouchao5563.online.key
+nginx/admin.zhouchao5563.online_nginx/admin.zhouchao5563.online_bundle.pem
+nginx/admin.zhouchao5563.online_nginx/admin.zhouchao5563.online.key
+nginx/api.zhouchao5563.online_nginx/api.zhouchao5563.online_bundle.pem
+nginx/api.zhouchao5563.online_nginx/api.zhouchao5563.online.key
+```
+
+最后在项目根目录执行：
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+如果只是从开发配置切换到生产配置，可执行：
+
+```bash
+docker compose up -d --force-recreate nginx
+```

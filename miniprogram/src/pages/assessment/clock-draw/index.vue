@@ -500,7 +500,7 @@ function handleSkip() {
 }
 
 .example-caption {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #999999;
   margin-top: 12rpx;
 }
@@ -591,7 +591,7 @@ function handleSkip() {
 }
 
 .stroke-label {
-  font-size: 22rpx;
+  font-size: 28rpx;
   color: #999999;
 }
 
@@ -667,7 +667,7 @@ function handleSkip() {
 }
 
 .tips-item {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #AD6800;
   line-height: 1.5;
 }

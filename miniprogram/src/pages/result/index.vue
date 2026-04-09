@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="result-page">
     <!-- AI Processing State -->
     <view v-if="isPolling" class="polling-state">
@@ -506,7 +506,7 @@ function goToAssessment() {
 onShareAppMessage(() => {
   const summary = simpleRiskLabel.value || '已完成评估'
   return {
-    title: `我完成了 MindGuard 认知评估：${summary}`,
+    title: `我完成了 忆守心安 认知评估：${summary}`,
     path: '/pages/index/index',
   }
 })
@@ -602,7 +602,7 @@ onShareAppMessage(() => {
 }
 
 .polling-hint {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #AAAAAA;
 }
 
@@ -679,7 +679,7 @@ onShareAppMessage(() => {
 }
 
 .risk-level-text {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #ffffff;
   font-weight: bold;
   text-align: center;
@@ -790,7 +790,7 @@ onShareAppMessage(() => {
 }
 
 .score-hint {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #999999;
 }
 
@@ -880,7 +880,7 @@ onShareAppMessage(() => {
 }
 
 .domain-max {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #CCCCCC;
   font-weight: normal;
 }
@@ -955,7 +955,7 @@ onShareAppMessage(() => {
 }
 
 .prob-disclaimer {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #AAAAAA;
   display: block;
   line-height: 1.5;
@@ -1028,7 +1028,7 @@ onShareAppMessage(() => {
 }
 
 .disclaimer-text {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #AAAAAA;
   line-height: 1.6;
   text-align: center;

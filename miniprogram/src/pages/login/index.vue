@@ -1,21 +1,18 @@
 <template>
   <view class="login-page">
-    <!-- Header / Logo Area -->
     <view class="header">
       <view class="logo-circle">
         <text class="logo-icon">🧠</text>
       </view>
-      <text class="app-title">MindGuard</text>
+      <text class="app-title">忆守心安</text>
       <text class="app-subtitle">社区认知健康评估系统</text>
     </view>
 
-    <!-- Login Form -->
     <view class="form-card">
       <text class="form-title">欢迎登录</text>
 
-      <!-- Phone Input -->
       <view class="input-group">
-        <text class="input-label">手机号码</text>
+        <text class="input-label">手机号</text>
         <view class="input-wrapper">
           <text class="input-icon">📱</text>
           <input
@@ -30,7 +27,6 @@
         </view>
       </view>
 
-      <!-- Password Input -->
       <view class="input-group">
         <text class="input-label">登录密码</text>
         <view class="input-wrapper">
@@ -47,12 +43,10 @@
         </view>
       </view>
 
-      <!-- Error Message -->
       <view v-if="errorMsg" class="error-box">
         <text class="error-text">⚠️ {{ errorMsg }}</text>
       </view>
 
-      <!-- Login Button -->
       <button
         class="btn-login"
         :loading="loading"
@@ -64,15 +58,6 @@
       </button>
     </view>
 
-    <!-- Demo Account Hint -->
-    <view class="demo-hint">
-      <text class="demo-title">演示账号</text>
-      <text class="demo-info">手机号：13800000003</text>
-      <text class="demo-info">密　码：elder123</text>
-      <button class="btn-demo" @tap="fillDemo">使用演示账号</button>
-    </view>
-
-    <!-- Footer -->
     <view class="footer">
       <text class="footer-text">张家界学院 · 社区健康研究中心</text>
     </view>
@@ -86,20 +71,14 @@ import { api } from '../../utils/request'
 
 const auth = useAuthStore()
 
-const phone = ref('')
-const password = ref('')
+const phone = ref('' )
+const password = ref('' )
 const loading = ref(false)
-const errorMsg = ref('')
+const errorMsg = ref('' )
 const showPassword = ref(false)
 
 function togglePassword() {
   showPassword.value = !showPassword.value
-}
-
-function fillDemo() {
-  phone.value = '13800000003'
-  password.value = 'elder123'
-  errorMsg.value = ''
 }
 
 function wxLoginCode() {
@@ -112,15 +91,14 @@ function wxLoginCode() {
 }
 
 async function handleLogin() {
-  // Validation
   errorMsg.value = ''
 
   if (!phone.value) {
-    errorMsg.value = '请输入手机号码'
+    errorMsg.value = '请输入手机号'
     return
   }
   if (!/^1[3-9]\d{9}$/.test(phone.value)) {
-    errorMsg.value = '请输入正确的手机号码'
+    errorMsg.value = '请输入正确的手机号'
     return
   }
   if (!password.value) {
@@ -160,7 +138,7 @@ async function handleLogin() {
       wx.showToast({
         title: '登录成功',
         icon: 'success',
-        duration: 1500
+        duration: 1500,
       })
 
       setTimeout(() => {
@@ -188,7 +166,6 @@ async function handleLogin() {
   padding-bottom: 60rpx;
 }
 
-/* Header */
 .header {
   display: flex;
   flex-direction: column;
@@ -228,7 +205,6 @@ async function handleLogin() {
   letter-spacing: 2rpx;
 }
 
-/* Form Card */
 .form-card {
   background: #ffffff;
   border-radius: 24rpx;
@@ -248,7 +224,6 @@ async function handleLogin() {
   text-align: center;
 }
 
-/* Input Groups */
 .input-group {
   margin-bottom: 32rpx;
 }
@@ -301,7 +276,6 @@ async function handleLogin() {
   padding: 10rpx;
 }
 
-/* Error Box */
 .error-box {
   background: #FFF2F0;
   border: 2rpx solid #FFCCC7;
@@ -316,7 +290,6 @@ async function handleLogin() {
   display: block;
 }
 
-/* Login Button */
 .btn-login {
   width: 100%;
   height: 100rpx;
@@ -336,55 +309,13 @@ async function handleLogin() {
   box-shadow: none;
 }
 
-/* Demo Hint */
-.demo-hint {
-  background: #FFFBE6;
-  border: 2rpx solid #FFE58F;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  margin: 30rpx 30rpx 0;
-  width: calc(100% - 60rpx);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.demo-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #875500;
-  margin-bottom: 12rpx;
-}
-
-.demo-info {
-  font-size: 28rpx;
-  color: #AD6800;
-  display: block;
-  margin-bottom: 6rpx;
-  letter-spacing: 1rpx;
-}
-
-.btn-demo {
-  margin-top: 20rpx;
-  background: #FAAD14;
-  color: #ffffff;
-  font-size: 28rpx;
-  height: 72rpx;
-  border-radius: 36rpx;
-  border: none;
-  padding: 0 40rpx;
-  font-weight: bold;
-}
-
-/* Footer */
 .footer {
   margin-top: 40rpx;
   text-align: center;
 }
 
 .footer-text {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #999999;
 }
 </style>

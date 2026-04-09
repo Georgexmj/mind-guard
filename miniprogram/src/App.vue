@@ -19,21 +19,41 @@ onShow(() => {
 <style>
 /* Global elderly-friendly styles */
 page {
-  background-color: #F5F5F5;
-  font-size: 36rpx;
-  line-height: 1.6;
-  color: #333333;
+  background-color: #f5f7fb;
+  font-size: 38rpx;
+  line-height: 1.75;
+  color: #1f2d3d;
+}
+
+view,
+text,
+label {
+  box-sizing: border-box;
+}
+
+text,
+label {
+  font-size: 32rpx;
+  line-height: 1.75;
+  color: #1f2d3d;
 }
 
 /* Large touch targets */
 button {
-  min-height: 88rpx;
+  min-height: 96rpx;
   font-size: 34rpx;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
+  line-height: 1.2;
 }
 
-/* Global card style */
-.card {
+input,
+textarea {
+  font-size: 32rpx;
+  line-height: 1.7;
+}
+
+.card,
+.elder-card {
   background: #ffffff;
   border-radius: 20rpx;
   padding: 30rpx;
@@ -41,24 +61,24 @@ button {
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
-/* Primary button */
-.btn-primary {
-  background-color: #4A90D9;
+.btn-primary,
+.elder-btn-primary {
+  background-color: #4a90d9;
   color: #ffffff;
   border: none;
-  min-height: 96rpx;
+  min-height: 100rpx;
   font-size: 36rpx;
-  font-weight: bold;
+  font-weight: 700;
   border-radius: 48rpx;
-  letter-spacing: 2rpx;
+  letter-spacing: 1rpx;
 }
 
-/* Secondary button */
-.btn-secondary {
+.btn-secondary,
+.elder-btn-secondary {
   background-color: #ffffff;
-  color: #4A90D9;
-  border: 2rpx solid #4A90D9;
-  min-height: 96rpx;
+  color: #4a90d9;
+  border: 2rpx solid #4a90d9;
+  min-height: 100rpx;
   font-size: 36rpx;
   border-radius: 48rpx;
 }

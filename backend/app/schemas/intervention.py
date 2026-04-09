@@ -136,12 +136,14 @@ class InterventionAdherenceAlertOut(BaseModel):
 class InterventionPlanProgressOut(BaseModel):
     plan_id: int
     plan_title: str
+    recommendation_code: Optional[str] = None
     frequency: Optional[str] = None
     completion_rate: float
     completed_count: int
     total_records: int
     today_checked: bool
     today_completed: Optional[bool] = None
+    consecutive_completed_days: int = 0
     consecutive_missed_days: int
     latest_interruption_reason: Optional[str] = None
 
@@ -180,6 +182,35 @@ class InterventionAdherenceTicketUpdate(BaseModel):
     owner_doctor_id: Optional[int] = None
     reminder_at: Optional[datetime] = None
     followup_note: Optional[str] = None
+
+
+class InterventionAdherenceTicketBatchUpdateIn(BaseModel):
+    ticket_ids: List[int] = Field(default_factory=list, min_length=1, max_length=200)
+    status: Optional[TicketStatus] = None
+    owner_doctor_id: Optional[int] = None
+    reminder_at: Optional[datetime] = None
+    followup_note: Optional[str] = None
+    append_followup_note: bool = False
+
+
+class InterventionAdherenceTicketBatchUpdateOut(BaseModel):
+    requested_count: int
+    updated_count: int
+    updated_ids: List[int]
+    skipped_ids: List[int]
+
+
+class InterventionAdherenceTicketStatsOut(BaseModel):
+    total_count: int
+    open_count: int
+    in_progress_count: int
+    resolved_count: int
+    ignored_count: int
+    overdue_open_count: int
+    avg_response_hours: Optional[float] = None
+    avg_resolution_hours: Optional[float] = None
+    resolved_within_24h_rate: float
+    resolved_within_48h_rate: float
 
 
 class InterventionAdherenceTicketSyncOut(BaseModel):

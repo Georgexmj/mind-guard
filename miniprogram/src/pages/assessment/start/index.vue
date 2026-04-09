@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="start-page">
     <!-- Title Area -->
     <view class="title-area">
@@ -513,7 +513,7 @@ onMounted(() => {
 
 .resume-desc {
   display: block;
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #389e0d;
   line-height: 1.6;
   margin-bottom: 14rpx;

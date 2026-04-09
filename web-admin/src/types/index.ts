@@ -238,6 +238,35 @@ export interface AdherenceTicket {
   updated_at: string
 }
 
+export interface AdherenceTicketBatchUpdatePayload {
+  ticket_ids: number[]
+  status?: 'open' | 'in_progress' | 'resolved' | 'ignored'
+  owner_doctor_id?: number
+  reminder_at?: string
+  followup_note?: string
+  append_followup_note?: boolean
+}
+
+export interface AdherenceTicketBatchUpdateResult {
+  requested_count: number
+  updated_count: number
+  updated_ids: number[]
+  skipped_ids: number[]
+}
+
+export interface AdherenceTicketStats {
+  total_count: number
+  open_count: number
+  in_progress_count: number
+  resolved_count: number
+  ignored_count: number
+  overdue_open_count: number
+  avg_response_hours?: number
+  avg_resolution_hours?: number
+  resolved_within_24h_rate: number
+  resolved_within_48h_rate: number
+}
+
 export interface WorkbenchQueues {
   high_risk: Array<{
     session_id: number

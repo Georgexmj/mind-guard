@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -46,25 +47,14 @@ interface HighRiskItem {
   assessed_at?: string
 }
 
-const MOCK_STATS: DashboardStats = {
-  total_elders: 128,
-  total_sessions: 342,
-  high_risk_count: 23,
-  today_sessions: 7,
+const EMPTY_STATS: DashboardStats = {
+  total_elders: 0,
+  total_sessions: 0,
+  high_risk_count: 0,
+  today_sessions: 0,
 }
 
-const MOCK_TREND = [
-  { month: '2025-10', count: 28 },
-  { month: '2025-11', count: 34 },
-  { month: '2025-12', count: 41 },
-  { month: '2026-01', count: 38 },
-  { month: '2026-02', count: 52 },
-  { month: '2026-03', count: 45 },
-]
-
-const MOCK_HIGH_RISK: HighRiskItem[] = []
-const MOCK_SESSIONS: (AssessmentSession & { user_name?: string; risk_level?: string })[] = []
-const MOCK_WORKBENCH: WorkbenchQueues = {
+const EMPTY_WORKBENCH: WorkbenchQueues = {
   high_risk: [],
   reassessment_due: [],
   low_adherence: [],
@@ -119,15 +109,17 @@ const statCards = (stats: DashboardStats) => [
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const [stats, setStats] = useState<DashboardStats>(MOCK_STATS)
-  const [sessions, setSessions] = useState<typeof MOCK_SESSIONS>(MOCK_SESSIONS)
-  const [trend, setTrend] = useState<{ month: string; count: number }[]>(MOCK_TREND)
-  const [highRisk, setHighRisk] = useState<HighRiskItem[]>(MOCK_HIGH_RISK)
-  const [workbench, setWorkbench] = useState<WorkbenchQueues>(MOCK_WORKBENCH)
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS)
+  const [sessions, setSessions] = useState<(AssessmentSession & { user_name?: string; risk_level?: string })[]>([])
+  const [trend, setTrend] = useState<{ month: string; count: number }[]>([])
+  const [highRisk, setHighRisk] = useState<HighRiskItem[]>([])
+  const [workbench, setWorkbench] = useState<WorkbenchQueues>(EMPTY_WORKBENCH)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
+      setError(null)
       try {
         const [statsRes, sessionsRes, trendRes, highRiskRes, workbenchRes] = await Promise.allSettled([
           getDashboardStats(),
@@ -137,18 +129,24 @@ export default function DashboardPage() {
           getDashboardWorkbenchQueues(10),
         ])
 
+        let failedCount = 0
         if (statsRes.status === 'fulfilled') setStats(statsRes.value)
-        if (sessionsRes.status === 'fulfilled' && sessionsRes.value.length > 0) {
-          setSessions(sessionsRes.value as typeof MOCK_SESSIONS)
-        }
-        if (trendRes.status === 'fulfilled' && trendRes.value.length > 0) {
-          setTrend(trendRes.value)
-        }
-        if (highRiskRes.status === 'fulfilled' && (highRiskRes.value as HighRiskItem[]).length > 0) {
-          setHighRisk(highRiskRes.value as HighRiskItem[])
-        }
-        if (workbenchRes.status === 'fulfilled') {
-          setWorkbench(workbenchRes.value)
+        else failedCount += 1
+
+        if (sessionsRes.status === 'fulfilled') setSessions(sessionsRes.value as (AssessmentSession & { user_name?: string; risk_level?: string })[])
+        else failedCount += 1
+
+        if (trendRes.status === 'fulfilled') setTrend(trendRes.value)
+        else failedCount += 1
+
+        if (highRiskRes.status === 'fulfilled') setHighRisk(highRiskRes.value as HighRiskItem[])
+        else failedCount += 1
+
+        if (workbenchRes.status === 'fulfilled') setWorkbench(workbenchRes.value)
+        else failedCount += 1
+
+        if (failedCount > 0) {
+          setError(`部分看板接口加载失败（${failedCount}/5），页面仅展示实时可用数据。`)
         }
       } finally {
         setLoading(false)
@@ -238,6 +236,14 @@ export default function DashboardPage() {
           {dayjs().format('YYYY年MM月DD日')} · 数据实时更新
         </Text>
       </div>
+      {error && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={error}
+        />
+      )}
 
       <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
         {statCards(stats).map((card) => (

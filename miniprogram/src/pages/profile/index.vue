@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="profile-page">
     <!-- User Header -->
     <view class="user-header">
@@ -101,7 +101,7 @@
         <view class="menu-item" @tap="showAbout">
           <view class="menu-left">
             <text class="menu-icon">ℹ️</text>
-            <text class="menu-text">关于MindGuard</text>
+            <text class="menu-text">关于忆守心安</text>
           </view>
           <view class="menu-right">
             <text class="menu-sub">版本 1.0.0</text>
@@ -338,8 +338,8 @@ function contactUs() {
 
 function showAbout() {
   wx.showModal({
-    title: '关于 MindGuard',
-    content: 'MindGuard 认知评估系统\n版本：1.0.0\n\n由张家界学院社区健康研究中心开发\n用于社区老年认知障碍早期筛查与干预\n\n© 2024 张家界学院',
+    title: '关于忆守心安',
+    content: '忆守心安 认知评估系统\n版本：1.0.0\n\n由张家界学院社区健康研究中心开发\n用于社区老年认知障碍早期筛查与干预\n\n© 2024 张家界学院',
     showCancel: false,
     confirmText: '关闭',
     confirmColor: '#4A90D9'
@@ -450,7 +450,7 @@ onMounted(() => {
 }
 
 .role-text {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #ffffff;
 }
 
@@ -481,7 +481,7 @@ onMounted(() => {
 }
 
 .stat-label {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #999999;
 }
 
@@ -671,7 +671,7 @@ onMounted(() => {
 }
 
 .menu-sub {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #AAAAAA;
 }
 

@@ -16,6 +16,7 @@ import {
   Statistic,
   Table,
   Tag,
+  Tabs,
   Typography,
   message,
 } from 'antd'
@@ -33,9 +34,11 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useSearchParams } from 'react-router-dom'
 
 import {
+  batchUpdateAdherenceTickets,
   createInterventionPlan,
   createInterventionPlanFromTop5,
   dispatchAdherenceReminders,
+  getAdherenceTicketStats,
   getAdherenceTickets,
   getDoctors,
   getElders,
@@ -48,6 +51,7 @@ import {
 } from '../services/api'
 import type {
   AdherenceTicket,
+  AdherenceTicketStats,
   InterventionAdherenceAlert,
   InterventionRecommendationItem,
   InterventionTop5Recommendation,
@@ -109,6 +113,8 @@ const DOMAIN_LABELS: Record<string, string> = {
   executive: '执行功能',
 }
 
+const DIRTY_TEXT_PATTERN = /(\?{2,}|�|锟)/i
+
 const FREQUENCY_OPTIONS = [
   { label: '每天1次', value: '每天1次' },
   { label: '每天2次', value: '每天2次' },
@@ -136,6 +142,8 @@ interface TicketFormValues {
   followup_note?: string
 }
 
+type InterventionSectionKey = 'overview' | 'recommendations' | 'alerts' | 'tickets' | 'plans'
+
 function domainTags(domains?: string): string[] {
   if (!domains) return []
   return domains
@@ -144,10 +152,53 @@ function domainTags(domains?: string): string[] {
     .filter(Boolean)
 }
 
+function isDirtyText(value?: string | null): boolean {
+  if (!value) return false
+  return DIRTY_TEXT_PATTERN.test(value.trim())
+}
+
+function buildPlanTitle(domains?: string): string {
+  const labels = domainTags(domains).map((domain) => DOMAIN_LABELS[domain] || domain)
+  if (labels.length === 0) return 'AI-认知训练计划'
+  if (labels.length === 1) return `AI-${labels[0]}训练`
+  return `AI-${labels.slice(0, 2).join('与')}训练`
+}
+
+function buildPlanDescription(domains?: string): string {
+  const labels = domainTags(domains).map((domain) => DOMAIN_LABELS[domain] || domain)
+  if (labels.length === 0) return '个体化认知训练计划。'
+  return `当前评估显示“${labels.join('、')}”相对薄弱，该干预可针对性改善相关认知功能。`
+}
+
+function normalizePlan(plan: InterventionPlan): InterventionPlan {
+  const next = { ...plan }
+  if (isDirtyText(next.title)) next.title = buildPlanTitle(next.domain_focus)
+  if (isDirtyText(next.description) || !next.description?.trim()) next.description = buildPlanDescription(next.domain_focus)
+  if (isDirtyText(next.frequency) || !next.frequency?.trim()) next.frequency = '每天1次'
+  return next
+}
+
+function normalizeTicket(ticket: AdherenceTicket): AdherenceTicket {
+  return {
+    ...ticket,
+    plan_title: isDirtyText(ticket.plan_title) ? buildPlanTitle(undefined) : ticket.plan_title,
+    followup_note: isDirtyText(ticket.followup_note) ? undefined : ticket.followup_note,
+    latest_interruption_reason: isDirtyText(ticket.latest_interruption_reason) ? undefined : ticket.latest_interruption_reason,
+  }
+}
+
+function normalizeAlert(alert: InterventionAdherenceAlert): InterventionAdherenceAlert {
+  return {
+    ...alert,
+    plan_title: isDirtyText(alert.plan_title) ? buildPlanTitle(undefined) : alert.plan_title,
+    latest_interruption_reason: isDirtyText(alert.latest_interruption_reason) ? undefined : alert.latest_interruption_reason,
+  }
+}
+
 export default function InterventionsPage() {
   const user = useAuthStore((state) => state.user)
   const canManage = user?.role === 'admin' || user?.role === 'doctor'
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const focusedTicketId = Number(searchParams.get('ticket_id') || 0)
 
   const [plans, setPlans] = useState<InterventionPlan[]>([])
@@ -175,6 +226,11 @@ export default function InterventionsPage() {
   const [syncingTickets, setSyncingTickets] = useState(false)
   const [dispatchingReminder, setDispatchingReminder] = useState(false)
   const [updatingTicket, setUpdatingTicket] = useState(false)
+  const [batchUpdatingTicket, setBatchUpdatingTicket] = useState(false)
+  const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([])
+  const [batchOwnerDoctorId, setBatchOwnerDoctorId] = useState<number | undefined>()
+  const [batchReminderAt, setBatchReminderAt] = useState<Dayjs | null>(null)
+  const [ticketStatsSummary, setTicketStatsSummary] = useState<AdherenceTicketStats | null>(null)
 
   const [planForm] = Form.useForm<PlanFormValues>()
   const [ticketForm] = Form.useForm<TicketFormValues>()
@@ -189,7 +245,7 @@ export default function InterventionsPage() {
     setPlanLoading(true)
     try {
       const data = await getInterventionPlans({ status: planStatusFilter })
-      setPlans(Array.isArray(data) ? (data as InterventionPlan[]) : [])
+      setPlans(Array.isArray(data) ? (data as InterventionPlan[]).map(normalizePlan) : [])
     } catch {
       setPlans([])
     } finally {
@@ -228,7 +284,7 @@ export default function InterventionsPage() {
     setAlertLoading(true)
     try {
       const data = await getInterventionAdherenceAlerts({ days: 14, threshold: 2, sync_ticket: true })
-      setAlerts(Array.isArray(data) ? data : [])
+      setAlerts(Array.isArray(data) ? data.map(normalizeAlert) : [])
     } catch {
       setAlerts([])
     } finally {
@@ -241,13 +297,23 @@ export default function InterventionsPage() {
     setTicketLoading(true)
     try {
       const data = await getAdherenceTickets({ status: ticketStatusFilter, page: 1, page_size: 100 })
-      setTickets(Array.isArray(data) ? data : [])
+      setTickets(Array.isArray(data) ? data.map(normalizeTicket) : [])
     } catch {
       setTickets([])
     } finally {
       setTicketLoading(false)
     }
   }, [canManage, ticketStatusFilter])
+
+  const fetchTicketStats = useCallback(async () => {
+    if (!canManage) return
+    try {
+      const stats = await getAdherenceTicketStats()
+      setTicketStatsSummary(stats)
+    } catch {
+      setTicketStatsSummary(null)
+    }
+  }, [canManage])
 
   useEffect(() => {
     fetchUsers()
@@ -262,6 +328,14 @@ export default function InterventionsPage() {
     fetchAlerts()
     fetchTickets()
   }, [fetchAlerts, fetchTickets])
+
+  useEffect(() => {
+    fetchTicketStats()
+  }, [fetchTicketStats])
+
+  useEffect(() => {
+    setSelectedTicketIds((prev) => prev.filter((id) => tickets.some((ticket) => ticket.id === id)))
+  }, [tickets])
 
   const openCreatePlan = () => {
     setEditingPlan(null)
@@ -302,6 +376,7 @@ export default function InterventionsPage() {
       fetchPlans()
       fetchAlerts()
       fetchTickets()
+      fetchTicketStats()
     } catch {
       // handled by form validation
     }
@@ -321,6 +396,7 @@ export default function InterventionsPage() {
       fetchPlans()
       fetchAlerts()
       fetchTickets()
+      fetchTicketStats()
     } catch (error) {
       message.error(error instanceof Error ? error.message : '创建计划失败')
     } finally {
@@ -335,6 +411,7 @@ export default function InterventionsPage() {
       message.success(`工单同步完成：新增 ${res.generated_count}，待处理 ${res.open_count}`)
       fetchAlerts()
       fetchTickets()
+      fetchTicketStats()
     } catch (error) {
       message.error(error instanceof Error ? error.message : '工单同步失败')
     } finally {
@@ -348,6 +425,7 @@ export default function InterventionsPage() {
       const res = await dispatchAdherenceReminders(true)
       message.success(`提醒派发完成：候选 ${res.candidate_count}，已推送 ${res.pushed_count}`)
       fetchTickets()
+      fetchTicketStats()
     } catch (error) {
       message.error(error instanceof Error ? error.message : '提醒派发失败')
     } finally {
@@ -381,10 +459,44 @@ export default function InterventionsPage() {
       setTicketModalOpen(false)
       fetchTickets()
       fetchAlerts()
+      fetchTicketStats()
     } catch {
       // form message handles validation
     } finally {
       setUpdatingTicket(false)
+    }
+  }
+
+  const handleBatchUpdateTickets = async (payload: {
+    status?: AdherenceTicket['status']
+    owner_doctor_id?: number
+    reminder_at?: string
+  }) => {
+    if (selectedTicketIds.length === 0) {
+      message.warning('请先勾选要处理的工单')
+      return
+    }
+    if (!payload.status && !payload.owner_doctor_id && !payload.reminder_at) {
+      message.warning('请先选择批处理动作')
+      return
+    }
+    try {
+      setBatchUpdatingTicket(true)
+      const res = await batchUpdateAdherenceTickets({
+        ticket_ids: selectedTicketIds,
+        ...payload,
+      })
+      message.success(`批处理完成：更新 ${res.updated_count} 条，跳过 ${res.skipped_ids.length} 条`)
+      setSelectedTicketIds([])
+      if (payload.owner_doctor_id) setBatchOwnerDoctorId(undefined)
+      if (payload.reminder_at) setBatchReminderAt(null)
+      fetchTickets()
+      fetchAlerts()
+      fetchTicketStats()
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '批处理失败')
+    } finally {
+      setBatchUpdatingTicket(false)
     }
   }
 
@@ -394,12 +506,76 @@ export default function InterventionsPage() {
   }
 
   const ticketStats = useMemo(() => {
+    if (ticketStatsSummary) {
+      return {
+        total: ticketStatsSummary.total_count,
+        open: ticketStatsSummary.open_count,
+        inProgress: ticketStatsSummary.in_progress_count,
+        resolved: ticketStatsSummary.resolved_count,
+        ignored: ticketStatsSummary.ignored_count,
+        overdue: ticketStatsSummary.overdue_open_count,
+        avgResponseHours: ticketStatsSummary.avg_response_hours,
+        avgResolutionHours: ticketStatsSummary.avg_resolution_hours,
+        within24hRate: ticketStatsSummary.resolved_within_24h_rate,
+        within48hRate: ticketStatsSummary.resolved_within_48h_rate,
+      }
+    }
     const total = tickets.length
     const open = tickets.filter((t) => t.status === 'open').length
     const inProgress = tickets.filter((t) => t.status === 'in_progress').length
     const resolved = tickets.filter((t) => t.status === 'resolved').length
-    return { total, open, inProgress, resolved }
-  }, [tickets])
+    const ignored = tickets.filter((t) => t.status === 'ignored').length
+    const overdue = tickets.filter(
+      (t) =>
+        (t.status === 'open' || t.status === 'in_progress') &&
+        Boolean(t.reminder_at) &&
+        dayjs(t.reminder_at).isBefore(dayjs())
+    ).length
+    return {
+      total,
+      open,
+      inProgress,
+      resolved,
+      ignored,
+      overdue,
+      avgResponseHours: undefined as number | undefined,
+      avgResolutionHours: undefined as number | undefined,
+      within24hRate: 0,
+      within48hRate: 0,
+    }
+  }, [tickets, ticketStatsSummary])
+
+  const sectionItems = useMemo(
+    () =>
+      canManage
+        ? [
+            { key: 'overview', label: '总览' },
+            { key: 'recommendations', label: 'Top-5推荐' },
+            { key: 'alerts', label: '依从性预警' },
+            { key: 'tickets', label: '处置工单' },
+            { key: 'plans', label: '干预计划' },
+          ]
+        : [
+            { key: 'recommendations', label: 'Top-5推荐' },
+            { key: 'plans', label: '干预计划' },
+          ],
+    [canManage]
+  )
+
+  const defaultSectionKey: InterventionSectionKey = canManage
+    ? (focusedTicketId > 0 || searchParams.get('queue') === 'low_adherence' ? 'tickets' : 'overview')
+    : 'recommendations'
+
+  const sectionKeySet = new Set(sectionItems.map((item) => item.key))
+  const activeSection = (searchParams.get('section') || defaultSectionKey) as InterventionSectionKey
+  const currentSection: InterventionSectionKey = sectionKeySet.has(activeSection) ? activeSection : defaultSectionKey
+
+  const handleSectionChange = (key: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (key === defaultSectionKey) next.delete('section')
+    else next.set('section', key)
+    setSearchParams(next, { replace: true })
+  }
 
   const planColumns: ColumnsType<InterventionPlan> = [
     {
@@ -556,6 +732,242 @@ export default function InterventionsPage() {
     },
   ]
 
+  const overviewContent = canManage ? (
+    <>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={8} lg={4}><Card><Statistic title="工单总数" value={ticketStats.total} /></Card></Col>
+        <Col xs={12} sm={8} lg={4}><Card><Statistic title="待处理" value={ticketStats.open} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
+        <Col xs={12} sm={8} lg={4}><Card><Statistic title="处理中" value={ticketStats.inProgress} valueStyle={{ color: '#1677ff' }} /></Card></Col>
+        <Col xs={12} sm={8} lg={4}><Card><Statistic title="已处理" value={ticketStats.resolved} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+        <Col xs={12} sm={8} lg={4}><Card><Statistic title="已忽略" value={ticketStats.ignored} /></Card></Col>
+        <Col xs={12} sm={8} lg={4}><Card><Statistic title="超时待办" value={ticketStats.overdue} valueStyle={{ color: '#fa541c' }} /></Card></Col>
+      </Row>
+      <Row gutter={[16, 16]}>
+        <Col xs={12} md={6}><Card><Statistic title="平均响应时效" value={ticketStats.avgResponseHours ?? 0} suffix="h" precision={1} /></Card></Col>
+        <Col xs={12} md={6}><Card><Statistic title="平均处置时长" value={ticketStats.avgResolutionHours ?? 0} suffix="h" precision={1} /></Card></Col>
+        <Col xs={12} md={6}><Card><Statistic title="24h处置率" value={ticketStats.within24hRate} suffix="%" precision={1} /></Card></Col>
+        <Col xs={12} md={6}><Card><Statistic title="48h处置率" value={ticketStats.within48hRate} suffix="%" precision={1} /></Card></Col>
+      </Row>
+    </>
+  ) : null
+
+  const top5Card = (
+    <Card
+      title={
+        <Space>
+          <BulbOutlined style={{ color: '#faad14' }} />
+          <Text strong>Top-5 干预推荐（最新评估）</Text>
+        </Space>
+      }
+      extra={<Button icon={<ReloadOutlined />} onClick={fetchTop5}>刷新推荐</Button>}
+      style={{ borderRadius: 12 }}
+    >
+      {recommendation ? (
+        <Text type="secondary" style={{ display: 'block', marginBottom: 10 }}>
+          会话 #{recommendation.session_id} · 风险 {recommendation.risk_level} · MMSE {recommendation.mmse_score ?? '-'}
+        </Text>
+      ) : (
+        <Alert type="warning" showIcon message="暂无可用推荐，请先完成一条评估结果。" style={{ marginBottom: 10 }} />
+      )}
+
+      <Table
+        rowKey="code"
+        size="small"
+        loading={recLoading}
+        pagination={false}
+        dataSource={recommendation?.recommendations || []}
+        columns={[
+          { title: '排名', dataIndex: 'rank', key: 'rank', width: 70 },
+          { title: '推荐项', dataIndex: 'title', key: 'title', width: 200 },
+          {
+            title: '目标认知域',
+            key: 'domains',
+            render: (_, row: InterventionRecommendationItem) => (
+              <>
+                {row.target_domains.map((d) => (
+                  <Tag key={d} color="blue">{DOMAIN_LABELS[d] || d}</Tag>
+                ))}
+              </>
+            ),
+          },
+          { title: '频次', dataIndex: 'frequency', key: 'frequency', width: 100 },
+          { title: '时长', dataIndex: 'duration_minutes', key: 'duration_minutes', width: 90, render: (v) => `${v} 分钟` },
+          {
+            title: '操作',
+            key: 'action',
+            width: 130,
+            render: (_, row: InterventionRecommendationItem) =>
+              canManage ? (
+                <Button
+                  type="link"
+                  loading={creatingFromRecoCode === row.code}
+                  onClick={() => handleCreateFromTop5(row)}
+                >
+                  一键生成计划
+                </Button>
+              ) : (
+                '-'
+              ),
+          },
+        ]}
+      />
+    </Card>
+  )
+
+  const alertsCard = canManage ? (
+    <Card
+      title={
+        <Space>
+          <WarningOutlined style={{ color: '#ff4d4f' }} />
+          <Text strong>依从性预警（触发依据）</Text>
+        </Space>
+      }
+      extra={<Button icon={<ReloadOutlined />} onClick={fetchAlerts}>刷新预警</Button>}
+      style={{ borderRadius: 12 }}
+    >
+      <Table
+        rowKey={(row) => `${row.plan_id}-${row.elder_id}`}
+        loading={alertLoading}
+        size="small"
+        pagination={{ pageSize: 8 }}
+        dataSource={alerts}
+        columns={alertColumns}
+      />
+    </Card>
+  ) : null
+
+  const ticketsCard = canManage ? (
+    <Card
+      title={
+        <Space>
+          <WarningOutlined style={{ color: '#fa541c' }} />
+          <Text strong>预警处置工单</Text>
+        </Space>
+      }
+      extra={
+        <Space>
+          <Tag color={selectedTicketIds.length > 0 ? 'blue' : 'default'}>
+            已选 {selectedTicketIds.length} 条
+          </Tag>
+          <Select
+            allowClear
+            placeholder="工单状态"
+            style={{ width: 130 }}
+            value={ticketStatusFilter}
+            onChange={(value) => setTicketStatusFilter(value)}
+            options={[
+              { label: '待处理', value: 'open' },
+              { label: '处理中', value: 'in_progress' },
+              { label: '已处理', value: 'resolved' },
+              { label: '已忽略', value: 'ignored' },
+            ]}
+          />
+          <Button icon={<SyncOutlined />} loading={syncingTickets} onClick={handleSyncTickets}>同步工单</Button>
+          <Button icon={<SendOutlined />} loading={dispatchingReminder} onClick={handleDispatchReminder}>派发提醒</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchTickets}>刷新</Button>
+        </Space>
+      }
+      style={{ borderRadius: 12 }}
+    >
+      <Space wrap style={{ marginBottom: 12 }}>
+        <Button
+          loading={batchUpdatingTicket}
+          disabled={selectedTicketIds.length === 0}
+          onClick={() => handleBatchUpdateTickets({ status: 'in_progress' })}
+        >
+          批量设为处理中
+        </Button>
+        <Button
+          type="primary"
+          loading={batchUpdatingTicket}
+          disabled={selectedTicketIds.length === 0}
+          onClick={() => handleBatchUpdateTickets({ status: 'resolved' })}
+        >
+          批量设为已处理
+        </Button>
+        <Select
+          allowClear
+          placeholder="批量指派医生"
+          style={{ width: 220 }}
+          value={batchOwnerDoctorId}
+          onChange={(value) => setBatchOwnerDoctorId(value)}
+          options={doctors.map((d) => ({ label: `${d.name}（${d.phone || d.id}）`, value: d.id }))}
+        />
+        <Button
+          loading={batchUpdatingTicket}
+          disabled={selectedTicketIds.length === 0 || !batchOwnerDoctorId}
+          onClick={() => handleBatchUpdateTickets({ owner_doctor_id: batchOwnerDoctorId })}
+        >
+          批量指派
+        </Button>
+        <DatePicker
+          showTime
+          format="YYYY-MM-DD HH:mm"
+          placeholder="批量提醒时间"
+          value={batchReminderAt}
+          onChange={(value) => setBatchReminderAt(value)}
+        />
+        <Button
+          loading={batchUpdatingTicket}
+          disabled={selectedTicketIds.length === 0 || !batchReminderAt}
+          onClick={() =>
+            handleBatchUpdateTickets({
+              reminder_at: batchReminderAt?.format('YYYY-MM-DDTHH:mm:ss'),
+            })
+          }
+        >
+          批量设提醒
+        </Button>
+      </Space>
+      <Table
+        rowKey="id"
+        loading={ticketLoading}
+        dataSource={tickets}
+        columns={ticketColumns}
+        rowSelection={{
+          selectedRowKeys: selectedTicketIds,
+          onChange: (keys) => setSelectedTicketIds(keys.map((key) => Number(key))),
+        }}
+        scroll={{ x: 1200 }}
+        pagination={{ pageSize: 8 }}
+      />
+    </Card>
+  ) : null
+
+  const plansCard = (
+    <Card
+      style={{ borderRadius: 12 }}
+      title={<Text strong>干预计划列表</Text>}
+      extra={
+        <Space>
+          <Select
+            allowClear
+            placeholder="计划状态"
+            style={{ width: 130 }}
+            value={planStatusFilter}
+            onChange={(value) => setPlanStatusFilter(value)}
+            options={Object.entries(planStatusMap).map(([value, cfg]) => ({ label: cfg.text, value }))}
+          />
+          <Button icon={<ReloadOutlined />} onClick={fetchPlans}>刷新</Button>
+          {canManage && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreatePlan}>
+              新建计划
+            </Button>
+          )}
+        </Space>
+      }
+    >
+      <Table
+        rowKey="id"
+        loading={planLoading}
+        dataSource={plans}
+        columns={planColumns}
+        scroll={{ x: 950 }}
+        pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条` }}
+      />
+    </Card>
+  )
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -565,169 +977,21 @@ export default function InterventionsPage() {
         <Text type="secondary">支持 Top-5 一键生成计划、依从性预警工单闭环与微信提醒派发。</Text>
       </div>
 
-      {canManage && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-          <Col xs={12} sm={6}><Card><Statistic title="工单总数" value={ticketStats.total} /></Card></Col>
-          <Col xs={12} sm={6}><Card><Statistic title="待处理" value={ticketStats.open} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-          <Col xs={12} sm={6}><Card><Statistic title="处理中" value={ticketStats.inProgress} valueStyle={{ color: '#1677ff' }} /></Card></Col>
-          <Col xs={12} sm={6}><Card><Statistic title="已处理" value={ticketStats.resolved} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        </Row>
-      )}
-
-      <Card
-        title={
-          <Space>
-            <BulbOutlined style={{ color: '#faad14' }} />
-            <Text strong>Top-5 干预推荐（最新评估）</Text>
-          </Space>
-        }
-        extra={<Button icon={<ReloadOutlined />} onClick={fetchTop5}>刷新推荐</Button>}
-        style={{ borderRadius: 12, marginBottom: 20 }}
-      >
-        {recommendation ? (
-          <Text type="secondary" style={{ display: 'block', marginBottom: 10 }}>
-            会话 #{recommendation.session_id} · 风险 {recommendation.risk_level} · MMSE {recommendation.mmse_score ?? '-'}
-          </Text>
-        ) : (
-          <Alert type="warning" showIcon message="暂无可用推荐，请先完成一条评估结果。" style={{ marginBottom: 10 }} />
-        )}
-
-        <Table
-          rowKey="code"
-          size="small"
-          loading={recLoading}
-          pagination={false}
-          dataSource={recommendation?.recommendations || []}
-          columns={[
-            { title: '排名', dataIndex: 'rank', key: 'rank', width: 70 },
-            { title: '推荐项', dataIndex: 'title', key: 'title', width: 200 },
-            {
-              title: '目标认知域',
-              key: 'domains',
-              render: (_, row: InterventionRecommendationItem) => (
-                <>
-                  {row.target_domains.map((d) => (
-                    <Tag key={d} color="blue">{DOMAIN_LABELS[d] || d}</Tag>
-                  ))}
-                </>
-              ),
-            },
-            { title: '频次', dataIndex: 'frequency', key: 'frequency', width: 100 },
-            { title: '时长', dataIndex: 'duration_minutes', key: 'duration_minutes', width: 90, render: (v) => `${v} 分钟` },
-            {
-              title: '操作',
-              key: 'action',
-              width: 130,
-              render: (_, row: InterventionRecommendationItem) =>
-                canManage ? (
-                  <Button
-                    type="link"
-                    loading={creatingFromRecoCode === row.code}
-                    onClick={() => handleCreateFromTop5(row)}
-                  >
-                    一键生成计划
-                  </Button>
-                ) : (
-                  '-'
-                ),
-            },
-          ]}
+      <Card style={{ borderRadius: 14, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '8px 20px 20px' }}>
+        <Tabs
+          activeKey={currentSection}
+          onChange={handleSectionChange}
+          items={sectionItems}
+          tabBarStyle={{ marginBottom: 20 }}
         />
-      </Card>
 
-      {canManage && (
-        <Card
-          title={
-            <Space>
-              <WarningOutlined style={{ color: '#ff4d4f' }} />
-              <Text strong>依从性预警（触发依据）</Text>
-            </Space>
-          }
-          extra={<Button icon={<ReloadOutlined />} onClick={fetchAlerts}>刷新预警</Button>}
-          style={{ borderRadius: 12, marginBottom: 20 }}
-        >
-          <Table
-            rowKey={(row) => `${row.plan_id}-${row.elder_id}`}
-            loading={alertLoading}
-            size="small"
-            pagination={{ pageSize: 5 }}
-            dataSource={alerts}
-            columns={alertColumns}
-          />
-        </Card>
-      )}
-
-      {canManage && (
-        <Card
-          title={
-            <Space>
-              <WarningOutlined style={{ color: '#fa541c' }} />
-              <Text strong>预警处置工单</Text>
-            </Space>
-          }
-          extra={
-            <Space>
-              <Select
-                allowClear
-                placeholder="工单状态"
-                style={{ width: 130 }}
-                value={ticketStatusFilter}
-                onChange={(value) => setTicketStatusFilter(value)}
-                options={[
-                  { label: '待处理', value: 'open' },
-                  { label: '处理中', value: 'in_progress' },
-                  { label: '已处理', value: 'resolved' },
-                  { label: '已忽略', value: 'ignored' },
-                ]}
-              />
-              <Button icon={<SyncOutlined />} loading={syncingTickets} onClick={handleSyncTickets}>同步工单</Button>
-              <Button icon={<SendOutlined />} loading={dispatchingReminder} onClick={handleDispatchReminder}>派发提醒</Button>
-              <Button icon={<ReloadOutlined />} onClick={fetchTickets}>刷新</Button>
-            </Space>
-          }
-          style={{ borderRadius: 12, marginBottom: 20 }}
-        >
-          <Table
-            rowKey="id"
-            loading={ticketLoading}
-            dataSource={tickets}
-            columns={ticketColumns}
-            scroll={{ x: 1200 }}
-            pagination={{ pageSize: 8 }}
-          />
-        </Card>
-      )}
-
-      <Card
-        style={{ borderRadius: 12 }}
-        title={<Text strong>干预计划列表</Text>}
-        extra={
-          <Space>
-            <Select
-              allowClear
-              placeholder="计划状态"
-              style={{ width: 130 }}
-              value={planStatusFilter}
-              onChange={(value) => setPlanStatusFilter(value)}
-              options={Object.entries(planStatusMap).map(([value, cfg]) => ({ label: cfg.text, value }))}
-            />
-            <Button icon={<ReloadOutlined />} onClick={fetchPlans}>刷新</Button>
-            {canManage && (
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreatePlan}>
-                新建计划
-              </Button>
-            )}
-          </Space>
-        }
-      >
-        <Table
-          rowKey="id"
-          loading={planLoading}
-          dataSource={plans}
-          columns={planColumns}
-          scroll={{ x: 950 }}
-          pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条` }}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {currentSection === 'overview' && overviewContent}
+          {currentSection === 'recommendations' && top5Card}
+          {currentSection === 'alerts' && alertsCard}
+          {currentSection === 'tickets' && ticketsCard}
+          {currentSection === 'plans' && plansCard}
+        </div>
       </Card>
 
       {canManage && (

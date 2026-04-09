@@ -22,7 +22,10 @@ from app.models.notification import NotificationType
 from app.models.user import User, UserRelationship, UserRole
 from app.schemas.intervention import (
     InterventionAdherenceAlertOut,
+    InterventionAdherenceTicketBatchUpdateIn,
+    InterventionAdherenceTicketBatchUpdateOut,
     InterventionAdherenceTicketOut,
+    InterventionAdherenceTicketStatsOut,
     InterventionReminderDispatchOut,
     InterventionAdherenceTicketSyncOut,
     InterventionAdherenceTicketUpdate,
@@ -49,6 +52,7 @@ from app.services.wechat_service import send_to_user_by_binding
 router = APIRouter(prefix="/api/v1/interventions", tags=["Interventions"])
 
 INTERRUPTION_PREFIX = "[INTERRUPTION_REASON]"
+TOP5_CODE_PREFIX = "[TOP5_CODE]"
 
 
 def _resolve_target_result(
@@ -86,6 +90,52 @@ def _resolve_target_result(
     if not row:
         raise HTTPException(status_code=404, detail="No completed assessment result found")
     return row[0], row[1]
+
+
+def _normalize_text_key(raw: Optional[str]) -> str:
+    text = str(raw or "").strip().lower()
+    if not text:
+        return ""
+    for ch in [" ", "-", "_", ":", "：", "(", ")", "（", "）", "[", "]", "【", "】", "、", ",", "，", ".", "。"]:
+        text = text.replace(ch, "")
+    return text
+
+
+def _extract_top5_code(description: Optional[str]) -> Optional[str]:
+    if not description:
+        return None
+    first_line = description.splitlines()[0].strip()
+    prefix = f"{TOP5_CODE_PREFIX}:"
+    if not first_line.startswith(prefix):
+        return None
+    code = first_line[len(prefix):].strip()
+    return code or None
+
+
+def _build_top5_plan_description(recommendation_code: str, rationale: Optional[str]) -> str:
+    code_line = f"{TOP5_CODE_PREFIX}:{recommendation_code}"
+    plain = (rationale or "").strip()
+    return f"{code_line}\n{plain}" if plain else code_line
+
+
+def _plan_matches_recommendation(
+    plan: InterventionPlan,
+    recommendation_code: str,
+    recommendation_title: str,
+) -> bool:
+    code = _extract_top5_code(plan.description)
+    if code and code == recommendation_code:
+        return True
+
+    plan_key = _normalize_text_key(plan.title)
+    recommendation_key = _normalize_text_key(recommendation_title)
+    if not plan_key or not recommendation_key:
+        return False
+    return (
+        plan_key == recommendation_key
+        or recommendation_key in plan_key
+        or plan_key in recommendation_key
+    )
 
 
 def _split_notes(raw_notes: Optional[str]) -> tuple[Optional[str], Optional[str]]:
@@ -185,6 +235,52 @@ def _consecutive_missed_days(
     return streak, latest_reason
 
 
+def _consecutive_completed_days(
+    db: Session,
+    plan: InterventionPlan,
+    window_days: int = 60,
+    reference_date: Optional[date_type] = None,
+) -> int:
+    ref = reference_date or date_type.today()
+    start_boundary = ref - timedelta(days=max(window_days - 1, 0))
+    if plan.start_date:
+        start_boundary = max(start_boundary, plan.start_date)
+
+    rows = (
+        db.query(InterventionRecord)
+        .filter(
+            InterventionRecord.plan_id == plan.id,
+            InterventionRecord.record_date >= start_boundary,
+            InterventionRecord.record_date <= ref,
+        )
+        .all()
+    )
+    if not rows:
+        return 0
+
+    by_date: Dict[date_type, List[InterventionRecord]] = {}
+    for row in rows:
+        by_date.setdefault(row.record_date, []).append(row)
+
+    day = ref
+    while day >= start_boundary and not by_date.get(day):
+        day -= timedelta(days=1)
+
+    if day < start_boundary:
+        return 0
+
+    streak = 0
+    while day >= start_boundary:
+        records = by_date.get(day, [])
+        has_completed = any(r.completed for r in records)
+        if not has_completed:
+            break
+        streak += 1
+        day -= timedelta(days=1)
+
+    return streak
+
+
 def _completion_rate_for_plan(db: Session, plan: InterventionPlan, lookback_days: int = 7) -> float:
     start = date_type.today() - timedelta(days=max(lookback_days - 1, 0))
     if plan.start_date:
@@ -243,6 +339,57 @@ def _ticket_to_out(ticket: InterventionAdherenceTicket) -> InterventionAdherence
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
     )
+
+
+def _apply_ticket_update(
+    db: Session,
+    ticket: InterventionAdherenceTicket,
+    *,
+    status_set: bool = False,
+    status_value: Optional[TicketStatus] = None,
+    owner_doctor_id_set: bool = False,
+    owner_doctor_id: Optional[int] = None,
+    reminder_at_set: bool = False,
+    reminder_at: Optional[datetime] = None,
+    followup_note_set: bool = False,
+    followup_note: Optional[str] = None,
+    append_followup_note: bool = False,
+) -> None:
+    if status_set and status_value is not None:
+        ticket.status = status_value
+        if status_value in (TicketStatus.resolved, TicketStatus.ignored):
+            ticket.resolved_at = datetime.utcnow()
+        elif status_value in (TicketStatus.open, TicketStatus.in_progress):
+            ticket.resolved_at = None
+
+    if owner_doctor_id_set:
+        if owner_doctor_id is None:
+            ticket.owner_doctor_id = None
+        else:
+            owner = db.query(User).filter(User.id == owner_doctor_id, User.role == UserRole.doctor).first()
+            if owner is None:
+                raise HTTPException(status_code=404, detail=f"Owner doctor not found: {owner_doctor_id}")
+            ticket.owner_doctor_id = owner.id
+
+    if reminder_at_set:
+        ticket.reminder_at = reminder_at
+
+    if followup_note_set:
+        note = (followup_note or "").strip()
+        if append_followup_note and note:
+            old_note = (ticket.followup_note or "").strip()
+            ticket.followup_note = f"{old_note}\n{note}" if old_note else note
+        else:
+            ticket.followup_note = note or None
+
+
+def _round_hours(start_at: Optional[datetime], end_at: Optional[datetime]) -> Optional[float]:
+    if start_at is None or end_at is None:
+        return None
+    seconds = (end_at - start_at).total_seconds()
+    if seconds < 0:
+        return None
+    return round(seconds / 3600.0, 2)
 
 
 def _upsert_adherence_ticket(
@@ -314,7 +461,7 @@ def get_top5_recommendations(
 def create_plan_from_top5(
     data: InterventionPlanFromTop5Create,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor)),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor, UserRole.elder)),
 ):
     if data.elder_id is None and data.session_id is None:
         raise HTTPException(status_code=400, detail="elder_id or session_id is required")
@@ -332,12 +479,26 @@ def create_plan_from_top5(
 
     start_date = data.start_date or date_type.today()
     end_date = start_date + timedelta(days=data.duration_days - 1)
+    existing_plans = (
+        db.query(InterventionPlan)
+        .filter(
+            InterventionPlan.elder_id == session.user_id,
+            InterventionPlan.status == PlanStatus.active,
+        )
+        .order_by(InterventionPlan.created_at.desc())
+        .all()
+    )
+    for existing in existing_plans:
+        if existing.end_date and existing.end_date < start_date:
+            continue
+        if _plan_matches_recommendation(existing, data.recommendation_code, selected["title"]):
+            return _plan_to_out(db, existing)
 
     plan = InterventionPlan(
         elder_id=session.user_id,
         created_by=current_user.id,
-        title=f"AI-{selected['title']}",
-        description=selected.get("rationale"),
+        title=selected["title"],
+        description=_build_top5_plan_description(data.recommendation_code, selected.get("rationale")),
         domain_focus=",".join(selected.get("target_domains", [])),
         frequency=selected.get("frequency"),
         duration_days=data.duration_days,
@@ -560,7 +721,8 @@ def get_my_progress(
     outputs: List[InterventionPlanProgressOut] = []
     for plan in plans:
         completed_count, total_records = _compute_plan_stats(db, plan.id)
-        streak, latest_reason = _consecutive_missed_days(db, plan, window_days=14)
+        missed_streak, latest_reason = _consecutive_missed_days(db, plan, window_days=14)
+        completed_streak = _consecutive_completed_days(db, plan, window_days=60)
         today_record = (
             db.query(InterventionRecord)
             .filter(
@@ -577,13 +739,15 @@ def get_my_progress(
             InterventionPlanProgressOut(
                 plan_id=plan.id,
                 plan_title=plan.title,
+                recommendation_code=_extract_top5_code(plan.description),
                 frequency=plan.frequency,
                 completion_rate=completion_rate,
                 completed_count=completed_count,
                 total_records=total_records,
                 today_checked=today_record is not None,
                 today_completed=today_record.completed if today_record else None,
-                consecutive_missed_days=streak,
+                consecutive_completed_days=completed_streak,
+                consecutive_missed_days=missed_streak,
                 latest_interruption_reason=latest_reason,
             )
         )
@@ -746,24 +910,157 @@ def update_adherence_ticket(
     if ticket is None:
         raise HTTPException(status_code=404, detail="Adherence ticket not found")
 
-    payload = data.model_dump(exclude_unset=True)
-    for field, value in payload.items():
-        setattr(ticket, field, value)
-
-    if data.status in (TicketStatus.resolved, TicketStatus.ignored):
-        ticket.resolved_at = datetime.utcnow()
-    elif data.status in (TicketStatus.open, TicketStatus.in_progress):
-        ticket.resolved_at = None
-
-    if data.owner_doctor_id is not None:
-        owner = db.query(User).filter(User.id == data.owner_doctor_id, User.role == UserRole.doctor).first()
-        if owner is None:
-            raise HTTPException(status_code=404, detail="Owner doctor not found")
-        ticket.owner_doctor_id = owner.id
+    fields_set = set(data.model_fields_set)
+    _apply_ticket_update(
+        db,
+        ticket,
+        status_set="status" in fields_set,
+        status_value=data.status,
+        owner_doctor_id_set="owner_doctor_id" in fields_set,
+        owner_doctor_id=data.owner_doctor_id,
+        reminder_at_set="reminder_at" in fields_set,
+        reminder_at=data.reminder_at,
+        followup_note_set="followup_note" in fields_set,
+        followup_note=data.followup_note,
+    )
 
     db.commit()
     db.refresh(ticket)
     return _ticket_to_out(ticket)
+
+
+@router.post("/adherence-tickets/batch-update", response_model=InterventionAdherenceTicketBatchUpdateOut)
+def batch_update_adherence_tickets(
+    data: InterventionAdherenceTicketBatchUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor)),
+):
+    _ = current_user
+    if not data.ticket_ids:
+        raise HTTPException(status_code=400, detail="ticket_ids is required")
+
+    fields_set = set(data.model_fields_set)
+    has_update_field = any(
+        [
+            "status" in fields_set,
+            "owner_doctor_id" in fields_set,
+            "reminder_at" in fields_set,
+            "followup_note" in fields_set,
+        ]
+    )
+    if not has_update_field:
+        raise HTTPException(status_code=400, detail="No update fields provided")
+
+    unique_ids = list(dict.fromkeys(data.ticket_ids))
+    rows = (
+        db.query(InterventionAdherenceTicket)
+        .filter(InterventionAdherenceTicket.id.in_(unique_ids))
+        .all()
+    )
+    row_map = {row.id: row for row in rows}
+    skipped_ids = [ticket_id for ticket_id in unique_ids if ticket_id not in row_map]
+
+    updated_ids: List[int] = []
+    for ticket_id in unique_ids:
+        ticket = row_map.get(ticket_id)
+        if ticket is None:
+            continue
+        _apply_ticket_update(
+            db,
+            ticket,
+            status_set="status" in fields_set,
+            status_value=data.status,
+            owner_doctor_id_set="owner_doctor_id" in fields_set,
+            owner_doctor_id=data.owner_doctor_id,
+            reminder_at_set="reminder_at" in fields_set,
+            reminder_at=data.reminder_at,
+            followup_note_set="followup_note" in fields_set,
+            followup_note=data.followup_note,
+            append_followup_note=data.append_followup_note,
+        )
+        updated_ids.append(ticket_id)
+
+    db.commit()
+
+    return InterventionAdherenceTicketBatchUpdateOut(
+        requested_count=len(unique_ids),
+        updated_count=len(updated_ids),
+        updated_ids=updated_ids,
+        skipped_ids=skipped_ids,
+    )
+
+
+@router.get("/adherence-tickets/stats", response_model=InterventionAdherenceTicketStatsOut)
+def get_adherence_ticket_stats(
+    owner_doctor_id: Optional[int] = Query(None),
+    elder_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor)),
+):
+    _ = current_user
+    q = db.query(InterventionAdherenceTicket)
+    if owner_doctor_id is not None:
+        q = q.filter(InterventionAdherenceTicket.owner_doctor_id == owner_doctor_id)
+    if elder_id is not None:
+        q = q.filter(InterventionAdherenceTicket.elder_id == elder_id)
+    tickets = q.all()
+
+    total_count = len(tickets)
+    open_count = len([t for t in tickets if t.status == TicketStatus.open])
+    in_progress_count = len([t for t in tickets if t.status == TicketStatus.in_progress])
+    resolved_count = len([t for t in tickets if t.status == TicketStatus.resolved])
+    ignored_count = len([t for t in tickets if t.status == TicketStatus.ignored])
+
+    now = datetime.utcnow()
+    overdue_open_count = len(
+        [
+            t
+            for t in tickets
+            if t.status in (TicketStatus.open, TicketStatus.in_progress)
+            and t.reminder_at is not None
+            and t.reminder_at < now
+        ]
+    )
+
+    response_hours = [
+        hours
+        for hours in (
+            _round_hours(t.created_at, t.updated_at if t.status != TicketStatus.open else None)
+            for t in tickets
+        )
+        if hours is not None
+    ]
+    avg_response_hours = round(sum(response_hours) / len(response_hours), 2) if response_hours else None
+
+    closed_tickets = [t for t in tickets if t.status in (TicketStatus.resolved, TicketStatus.ignored)]
+    resolution_hours = [
+        hours
+        for hours in (
+            _round_hours(t.created_at, t.resolved_at or t.updated_at)
+            for t in closed_tickets
+        )
+        if hours is not None
+    ]
+    avg_resolution_hours = round(sum(resolution_hours) / len(resolution_hours), 2) if resolution_hours else None
+
+    closed_count = len(resolution_hours)
+    within_24h = len([h for h in resolution_hours if h <= 24.0])
+    within_48h = len([h for h in resolution_hours if h <= 48.0])
+    resolved_within_24h_rate = round(within_24h / closed_count * 100.0, 1) if closed_count else 0.0
+    resolved_within_48h_rate = round(within_48h / closed_count * 100.0, 1) if closed_count else 0.0
+
+    return InterventionAdherenceTicketStatsOut(
+        total_count=total_count,
+        open_count=open_count,
+        in_progress_count=in_progress_count,
+        resolved_count=resolved_count,
+        ignored_count=ignored_count,
+        overdue_open_count=overdue_open_count,
+        avg_response_hours=avg_response_hours,
+        avg_resolution_hours=avg_resolution_hours,
+        resolved_within_24h_rate=resolved_within_24h_rate,
+        resolved_within_48h_rate=resolved_within_48h_rate,
+    )
 
 
 @router.post("/reminders/adherence/dispatch", response_model=InterventionReminderDispatchOut)

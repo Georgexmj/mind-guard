@@ -163,3 +163,65 @@ npm install
 | InfluxDB | 30006 | 8086 | http://localhost:30006 |
 | MongoDB | 30007 | 27017 | 数据库连接地址 `localhost:30007` |
 
+## Nginx 配置切换
+当前项目提供两套 Nginx 配置：
+
+| 场景 | 配置文件 | 用途 |
+|------|----------|------|
+| 开发环境 | `nginx/nginx.dev.conf` | 本地 `localhost:30000` 访问，HTTP 反向代理到 `web_admin` 和 `backend` |
+| 生产环境 | `nginx/nginx.prod.conf` | 线上域名 + HTTPS 证书配置，适用于 `admin.zhouchao5563.online` / `api.zhouchao5563.online` / `h5.zhouchao5563.online` |
+
+通过根目录 `.env` 中的 `NGINX_CONF_FILE` 切换：
+
+```env
+NGINX_CONF_FILE=nginx.dev.conf
+```
+
+或：
+
+```env
+NGINX_CONF_FILE=nginx.prod.conf
+```
+
+## 生产环境执行方式
+如果你要在生产环境启动当前项目，建议按下面执行：
+
+1. 准备根目录 `.env`，并至少设置以下变量：
+
+```env
+NGINX_CONF_FILE=nginx.prod.conf
+NGINX_HTTP_PORT=80
+NGINX_HTTPS_PORT=443
+BACKEND_PORT=30001
+MYSQL_PORT=30002
+REDIS_PORT=30003
+MINIO_API_PORT=30004
+MINIO_CONSOLE_PORT=30005
+INFLUXDB_PORT=30006
+MONGODB_PORT=30007
+```
+
+2. 确保证书文件已经放到以下目录，并且文件名与生产配置一致：
+
+```text
+nginx/zhouchao5563.online_nginx/zhouchao5563.online_bundle.pem
+nginx/zhouchao5563.online_nginx/zhouchao5563.online.key
+nginx/admin.zhouchao5563.online_nginx/admin.zhouchao5563.online_bundle.pem
+nginx/admin.zhouchao5563.online_nginx/admin.zhouchao5563.online.key
+nginx/api.zhouchao5563.online_nginx/api.zhouchao5563.online_bundle.pem
+nginx/api.zhouchao5563.online_nginx/api.zhouchao5563.online.key
+```
+
+3. 在项目根目录执行：
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+4. 如果只是切换 Nginx 配置，不想重建全部服务，可以执行：
+
+```bash
+docker compose up -d --force-recreate nginx
+```
+

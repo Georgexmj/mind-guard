@@ -1,6 +1,9 @@
 import axios from 'axios'
 import type {
   AdherenceTicket,
+  AdherenceTicketBatchUpdatePayload,
+  AdherenceTicketBatchUpdateResult,
+  AdherenceTicketStats,
   User,
   Community,
   AssessmentSession,
@@ -50,6 +53,55 @@ apiClient.interceptors.response.use(
   }
 )
 
+type UserListParams = {
+  page?: number
+  page_size?: number
+  community_id?: number
+}
+
+const USER_LIST_PAGE_LIMIT = 100
+
+async function fetchUserList(
+  endpoint: string,
+  params?: UserListParams,
+  extraParams?: Record<string, unknown>
+): Promise<User[]> {
+  const page = Math.max(params?.page ?? 1, 1)
+  const pageSize = Math.max(params?.page_size ?? 20, 1)
+  const sharedParams = {
+    ...extraParams,
+    community_id: params?.community_id,
+  }
+
+  if (pageSize <= USER_LIST_PAGE_LIMIT) {
+    const response = await apiClient.get<User[]>(endpoint, {
+      params: { ...sharedParams, page, page_size: pageSize },
+    })
+    return response.data
+  }
+
+  const logicalOffset = (page - 1) * pageSize
+  const startPage = Math.floor(logicalOffset / USER_LIST_PAGE_LIMIT) + 1
+  const endOffsetExclusive = logicalOffset + pageSize
+  const endPage = Math.ceil(endOffsetExclusive / USER_LIST_PAGE_LIMIT)
+
+  const responses = await Promise.all(
+    Array.from({ length: endPage - startPage + 1 }, (_, index) =>
+      apiClient.get<User[]>(endpoint, {
+        params: {
+          ...sharedParams,
+          page: startPage + index,
+          page_size: USER_LIST_PAGE_LIMIT,
+        },
+      })
+    )
+  )
+
+  const mergedRows = responses.flatMap((response) => response.data)
+  const sliceStart = logicalOffset - (startPage - 1) * USER_LIST_PAGE_LIMIT
+  return mergedRows.slice(sliceStart, sliceStart + pageSize)
+}
+
 // Auth
 export const login = async (phone: string, password: string): Promise<TokenResponse> => {
   const response = await apiClient.post<TokenResponse>('/auth/login', { phone, password })
@@ -62,35 +114,15 @@ export const getMe = async (): Promise<User> => {
 }
 
 // Elders — backend returns a plain array, not paginated
-export const getElders = async (params?: {
-  page?: number
-  page_size?: number
-  community_id?: number
-}): Promise<User[]> => {
-  const response = await apiClient.get<User[]>('/users', {
-    params: { role: 'elder', ...params },
-  })
-  return response.data
+export const getElders = async (params?: UserListParams): Promise<User[]> =>
+  fetchUserList('/users/elders', params)
+
+export const getFamilies = async (params?: UserListParams): Promise<User[]> => {
+  return fetchUserList('/users', params, { role: 'family' })
 }
 
-export const getFamilies = async (params?: {
-  page?: number
-  page_size?: number
-}): Promise<User[]> => {
-  const response = await apiClient.get<User[]>('/users', {
-    params: { role: 'family', ...params },
-  })
-  return response.data
-}
-
-export const getDoctors = async (params?: {
-  page?: number
-  page_size?: number
-}): Promise<User[]> => {
-  const response = await apiClient.get<User[]>('/users', {
-    params: { role: 'doctor', ...params },
-  })
-  return response.data
+export const getDoctors = async (params?: UserListParams): Promise<User[]> => {
+  return fetchUserList('/users', params, { role: 'doctor' })
 }
 
 export const getElderById = async (userId: number): Promise<User> => {
@@ -149,8 +181,48 @@ export const getSessions = async (params?: {
   page?: number
   page_size?: number
 }): Promise<AssessmentSession[]> => {
-  const response = await apiClient.get<AssessmentSession[]>('/assessments/sessions', { params })
-  return response.data
+  const response = await apiClient.get<AssessmentSession[]>('/assessments/sessions')
+  let sessions = Array.isArray(response.data) ? response.data : []
+
+  if (typeof params?.user_id === 'number') {
+    sessions = sessions.filter((session) => session.user_id === params.user_id)
+  }
+
+  if (params?.status) {
+    sessions = sessions.filter((session) => session.status === params.status)
+  }
+
+  try {
+    const [elders, communities] = await Promise.all([
+      getElders({ page: 1, page_size: 1000 }),
+      getCommunities(),
+    ])
+
+    const elderMap = new Map(elders.map((elder) => [elder.id, elder]))
+    const communityMap = new Map(communities.map((community) => [community.id, community.name]))
+
+    sessions = sessions.map((session) => {
+      const elder = elderMap.get(session.user_id)
+      const communityName = elder?.community_id ? communityMap.get(elder.community_id) : undefined
+
+      return {
+        ...session,
+        user: session.user ?? elder,
+        user_name: elder?.name,
+        community_name: communityName,
+      } as AssessmentSession
+    })
+  } catch {
+    // Keep raw session data when supplemental elder/community lookup fails.
+  }
+
+  if (typeof params?.page_size === 'number' && params.page_size > 0) {
+    const page = Math.max(params.page ?? 1, 1)
+    const start = (page - 1) * params.page_size
+    sessions = sessions.slice(start, start + params.page_size)
+  }
+
+  return sessions
 }
 
 export const getSessionResult = async (sessionId: number): Promise<AssessmentResult> => {
@@ -161,13 +233,15 @@ export const getSessionResult = async (sessionId: number): Promise<AssessmentRes
 export const getSessionDetail = async (
   sessionId: number
 ): Promise<AssessmentSession & { result?: AssessmentResult }> => {
-  const [sessionRes, resultRes] = await Promise.allSettled([
-    apiClient.get<AssessmentSession>(`/assessments/sessions/${sessionId}`),
-    apiClient.get<AssessmentResult>(`/assessments/sessions/${sessionId}/result`),
-  ])
-  const session = sessionRes.status === 'fulfilled' ? sessionRes.value.data : ({} as AssessmentSession)
-  const result = resultRes.status === 'fulfilled' && resultRes.value.data ? resultRes.value.data : undefined
-  return { ...session, result }
+  const sessionRes = await apiClient.get<AssessmentSession>(`/assessments/sessions/${sessionId}`)
+  let result: AssessmentResult | undefined
+  try {
+    const resultRes = await apiClient.get<AssessmentResult>(`/assessments/sessions/${sessionId}/result`)
+    result = resultRes.data
+  } catch {
+    result = undefined
+  }
+  return { ...sessionRes.data, result }
 }
 
 // Communities
@@ -176,20 +250,9 @@ export const getCommunities = async (): Promise<Community[]> => {
   return response.data
 }
 
-// Dashboard stats - with fallback mock
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-  try {
-    const response = await apiClient.get<DashboardStats>('/dashboard/stats')
-    return response.data
-  } catch {
-    // Fallback: compute from existing endpoints or return mock
-    return {
-      total_elders: 128,
-      total_sessions: 342,
-      high_risk_count: 23,
-      today_sessions: 7,
-    }
-  }
+  const response = await apiClient.get<DashboardStats>('/dashboard/stats')
+  return response.data
 }
 
 export default apiClient
@@ -284,6 +347,24 @@ export const updateAdherenceTicket = async (
   }
 ): Promise<AdherenceTicket> => {
   const response = await apiClient.put<AdherenceTicket>(`/interventions/adherence-tickets/${ticketId}`, data)
+  return response.data
+}
+
+export const batchUpdateAdherenceTickets = async (
+  data: AdherenceTicketBatchUpdatePayload
+): Promise<AdherenceTicketBatchUpdateResult> => {
+  const response = await apiClient.post<AdherenceTicketBatchUpdateResult>(
+    '/interventions/adherence-tickets/batch-update',
+    data
+  )
+  return response.data
+}
+
+export const getAdherenceTicketStats = async (params?: {
+  owner_doctor_id?: number
+  elder_id?: number
+}): Promise<AdherenceTicketStats> => {
+  const response = await apiClient.get<AdherenceTicketStats>('/interventions/adherence-tickets/stats', { params })
   return response.data
 }
 

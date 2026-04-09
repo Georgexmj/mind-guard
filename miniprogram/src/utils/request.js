@@ -125,6 +125,13 @@ export const api = {
 
   getInterventionMyProgress: () => request({ url: '/interventions/my-progress' }),
 
+  createInterventionPlanFromTop5: (payload) =>
+    request({
+      url: '/interventions/recommendations/top5/create-plan',
+      method: 'POST',
+      data: payload,
+    }),
+
   dailyInterventionCheckin: (payload) =>
     request({
       url: '/interventions/daily-checkin',

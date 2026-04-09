@@ -16,9 +16,11 @@ COPY requirements.txt .
 
 # 使用清华 PyPI 镜像加速安装
 RUN pip install --no-cache-dir -r requirements.txt \
-    -i https://pypi.org/simple \
-    --trusted-host pypi.org \
-    --trusted-host files.pythonhosted.org
+    -i https://mirrors.cloud.tencent.com/pypi/simple \
+    --trusted-host mirrors.cloud.tencent.com \
+    --retries 12 \
+    --timeout 300
+
 
 COPY . .
 

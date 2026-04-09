@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="question-page">
     <!-- Progress Header -->
     <view class="progress-header">
@@ -537,7 +537,7 @@ onUnmounted(() => {
 }
 
 .progress-pct {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #4A90D9;
   font-weight: bold;
   min-width: 60rpx;
@@ -567,7 +567,7 @@ onUnmounted(() => {
 }
 
 .domain-name {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #ffffff;
   font-weight: bold;
 }
@@ -686,7 +686,7 @@ onUnmounted(() => {
 }
 
 .scale-label-left, .scale-label-right {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #999999;
 }
 

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="home-page">
     <!-- Welcome Header -->
     <view class="welcome-header">
@@ -207,7 +207,13 @@ const daysSinceLastAssess = computed(() => {
 
 const trendPoints = computed(() => {
   const points = Array.isArray(trendSummary.value?.points) ? trendSummary.value.points : []
-  return points.slice(-5)
+  return [...points]
+    .sort((a, b) => {
+      const aTs = new Date(a?.assessed_at || a?.created_at || 0).getTime()
+      const bTs = new Date(b?.assessed_at || b?.created_at || 0).getTime()
+      return bTs - aTs
+    })
+    .slice(0, 3)
 })
 
 const trendRiskLabel = computed(() => {
@@ -455,7 +461,7 @@ onMounted(() => {
 }
 
 .date-text {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: rgba(255, 255, 255, 0.8);
 }
 
@@ -511,7 +517,7 @@ onMounted(() => {
 }
 
 .assess-desc {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: rgba(255, 255, 255, 0.85);
 }
 
@@ -557,7 +563,7 @@ onMounted(() => {
 }
 
 .stat-label {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #999999;
 }
 
@@ -609,7 +615,7 @@ onMounted(() => {
 }
 
 .feature-desc {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #6b7785;
 }
 
@@ -640,7 +646,7 @@ onMounted(() => {
 }
 
 .trend-next {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #6b7785;
 }
 
@@ -651,7 +657,7 @@ onMounted(() => {
 }
 
 .trend-meta-item {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #4a6b8a;
 }
 
@@ -671,18 +677,18 @@ onMounted(() => {
 }
 
 .trend-date {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #4A90D9;
   min-width: 90rpx;
 }
 
 .trend-score {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #516172;
 }
 
 .trend-empty {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #8c9bab;
 }
 
@@ -770,7 +776,7 @@ onMounted(() => {
 }
 
 .session-score {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #888888;
 }
 

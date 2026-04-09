@@ -453,7 +453,7 @@ function cleanup() {
 }
 
 .timer-label {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #999999;
   margin-top: 4rpx;
 }
@@ -540,7 +540,7 @@ function cleanup() {
 }
 
 .record-limit-hint {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #AAAAAA;
 }
 
@@ -678,7 +678,7 @@ function cleanup() {
 }
 
 .tips-item {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #AD6800;
   line-height: 1.5;
 }

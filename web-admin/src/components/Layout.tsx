@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Layout as AntLayout, Menu, Button, Avatar, Dropdown, Space, Typography } from 'antd'
+import type { MenuProps } from 'antd'
 import {
   DashboardOutlined,
   UserOutlined,
@@ -15,60 +17,40 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import type { User } from '../types'
+import '../styles/layout.css'
 
 const { Sider, Header, Content } = AntLayout
 const { Text } = Typography
 
 type UserRole = User['role']
 
-type MenuItem = {
+type AppMenuItem = {
   key: string
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
   roles: UserRole[]
 }
 
-const menuItems: MenuItem[] = [
-  {
-    key: '/dashboard',
-    icon: <DashboardOutlined />,
-    label: '仪表盘',
-    roles: ['admin', 'doctor'],
-  },
-  {
-    key: '/elders',
-    icon: <UserOutlined />,
-    label: '老人管理',
-    roles: ['admin', 'doctor'],
-  },
-  {
-    key: '/assessments',
-    icon: <FileTextOutlined />,
-    label: '评估管理',
-    roles: ['admin', 'doctor', 'elder', 'family'],
-  },
-  {
-    key: '/interventions',
-    icon: <HeartOutlined />,
-    label: '干预管理',
-    roles: ['admin', 'doctor', 'elder', 'family'],
-  },
-  {
-    key: '/questions',
-    icon: <BookOutlined />,
-    label: '题库管理',
-    roles: ['admin', 'doctor'],
-  },
-  {
-    key: '/notifications',
-    icon: <BellOutlined />,
-    label: '通知中心',
-    roles: ['admin', 'doctor', 'elder', 'family'],
-  },
+const menuItems: AppMenuItem[] = [
+  { key: '/dashboard', icon: <DashboardOutlined />, label: '运营看板', roles: ['admin', 'doctor'] },
+  { key: '/elders', icon: <UserOutlined />, label: '老人管理', roles: ['admin', 'doctor'] },
+  { key: '/assessments', icon: <FileTextOutlined />, label: '评估管理', roles: ['admin', 'doctor', 'elder', 'family'] },
+  { key: '/interventions', icon: <HeartOutlined />, label: '干预管理', roles: ['admin', 'doctor', 'elder', 'family'] },
+  { key: '/questions', icon: <BookOutlined />, label: '题库管理', roles: ['admin', 'doctor'] },
+  { key: '/notifications', icon: <BellOutlined />, label: '通知中心', roles: ['admin', 'doctor', 'elder', 'family'] },
 ]
 
+const pageTitleMap: Record<string, string> = {
+  '/dashboard': '运营看板',
+  '/elders': '老人管理',
+  '/assessments': '评估管理',
+  '/interventions': '干预管理',
+  '/questions': '题库管理',
+  '/notifications': '通知中心',
+}
+
 const roleLabelMap: Record<UserRole, string> = {
-  admin: '管理员',
+  admin: '系统管理员',
   doctor: '医生',
   elder: '老人用户',
   family: '家属用户',
@@ -81,126 +63,104 @@ export default function Layout() {
   const { user, logout } = useAuthStore()
   const role = user?.role
 
-  const visibleMenuItems = role
-    ? menuItems.filter((item) => item.roles.includes(role))
-    : []
+  const visibleMenuItems = useMemo(
+    () => (role ? menuItems.filter((item) => item.roles.includes(role)) : []),
+    [role]
+  )
 
-  const selectedKey =
-    visibleMenuItems.find((item) => location.pathname.startsWith(item.key))?.key || visibleMenuItems[0]?.key
+  const selectedKey = useMemo(
+    () =>
+      visibleMenuItems.find((item) => location.pathname.startsWith(item.key))?.key ??
+      visibleMenuItems[0]?.key,
+    [location.pathname, visibleMenuItems]
+  )
 
-  const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key)
-  }
+  const currentTitle = pageTitleMap[selectedKey ?? ''] ?? '管理工作台'
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
-  const userMenuItems = [
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-      onClick: handleLogout,
+  const userMenu: MenuProps = {
+    items: [
+      {
+        key: 'logout',
+        icon: <LogoutOutlined />,
+        label: '退出登录',
+        danger: true,
+      },
+    ],
+    onClick: ({ key }) => {
+      if (key === 'logout') handleLogout()
     },
-  ]
+  }
 
   return (
-    <AntLayout style={{ minHeight: '100vh' }}>
+    <AntLayout className="mg-shell">
       <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
         trigger={null}
-        width={220}
-        style={{
-          background: 'linear-gradient(180deg, #001529 0%, #002140 100%)',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
-        }}
+        width={248}
+        className="mg-sider"
       >
-        {/* Logo */}
-        <div
-          style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            padding: collapsed ? '0' : '0 20px',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-          }}
-        >
-          <MedicineBoxOutlined style={{ color: '#1677ff', fontSize: 24, flexShrink: 0 }} />
+        <div className="mg-logo" onClick={() => navigate('/dashboard')}>
+          <div className="mg-logo-icon">
+            <MedicineBoxOutlined />
+          </div>
           {!collapsed && (
-            <Text
-              style={{
-                color: '#fff',
-                fontSize: 16,
-                fontWeight: 700,
-                marginLeft: 10,
-                whiteSpace: 'nowrap',
-                letterSpacing: 1,
-              }}
-            >
-              MindGuard
-            </Text>
+            <div className="mg-logo-text">
+              <Text className="mg-logo-title">MindGuard</Text>
+              <Text className="mg-logo-subtitle">认知早筛管理台</Text>
+            </div>
           )}
         </div>
 
         <Menu
-          theme="dark"
+          className="mg-menu"
           mode="inline"
           selectedKeys={selectedKey ? [selectedKey] : []}
           items={visibleMenuItems}
-          onClick={handleMenuClick}
-          style={{
-            background: 'transparent',
-            borderRight: 'none',
-            marginTop: 8,
-          }}
+          onClick={({ key }) => navigate(key)}
         />
+
+        {!collapsed && (
+          <div className="mg-sider-footer">
+            <Text className="mg-sider-footer-title">今日提醒</Text>
+            <Text className="mg-sider-footer-desc">重点关注高风险老人复评与干预跟踪闭环。</Text>
+          </div>
+        )}
       </Sider>
 
-      <AntLayout>
-        <Header
-          style={{
-            background: '#fff',
-            padding: '0 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0,21,41,0.08)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-          }}
-        >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: 16, width: 40, height: 40 }}
-          />
+      <AntLayout className="mg-main">
+        <Header className="mg-header">
+          <div className="mg-header-left">
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed((prev) => !prev)}
+              className="mg-collapse-btn"
+            />
+            <div>
+              <Text className="mg-header-title">{currentTitle}</Text>
+              <Text className="mg-header-subtitle">社区老年认知障碍早期筛查与干预系统</Text>
+            </div>
+          </div>
 
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar
-                style={{ backgroundColor: '#1677ff' }}
-                icon={<UserOutlined />}
-              />
-              <Text style={{ fontWeight: 500 }}>
-                {user?.name || '未登录'}{user?.role ? `（${roleLabelMap[user.role]}）` : ''}
-              </Text>
+          <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+            <Space className="mg-user-chip">
+              <Avatar className="mg-user-avatar" icon={<UserOutlined />} />
+              <div className="mg-user-meta">
+                <Text className="mg-user-name">{user?.name || '未登录用户'}</Text>
+                <Text className="mg-user-role">{user?.role ? roleLabelMap[user.role] : ''}</Text>
+              </div>
             </Space>
           </Dropdown>
         </Header>
 
-        <Content
-          style={{
-            margin: 24,
-            minHeight: 'calc(100vh - 112px)',
-          }}
-        >
+        <Content className="mg-content">
           <Outlet />
         </Content>
       </AntLayout>

@@ -1,0 +1,247 @@
+.mg-shell {
+  min-height: 100vh;
+}
+
+.mg-sider {
+  margin: 18px 0 18px 18px;
+  border-radius: 26px;
+  background:
+    radial-gradient(20rem 12rem at -10% 0%, rgba(64, 214, 198, 0.22), transparent 55%),
+    linear-gradient(170deg, #0f172a, #0b2535 56%, #0c3143);
+  border: 1px solid rgba(149, 194, 210, 0.22);
+  box-shadow: var(--mg-shadow-strong);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.mg-sider:hover {
+  box-shadow: 0 32px 60px rgba(20, 42, 62, 0.2);
+}
+
+.mg-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 16px 10px;
+  padding: 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.mg-logo:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.mg-logo-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: #cffcf4;
+  font-size: 21px;
+  background: linear-gradient(145deg, #14b8a6, #0f766e);
+  box-shadow: 0 8px 18px rgba(12, 148, 137, 0.32);
+}
+
+.mg-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.mg-logo-title.ant-typography {
+  color: #f7feff;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.mg-logo-subtitle.ant-typography {
+  color: rgba(213, 233, 242, 0.82);
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.mg-menu {
+  margin: 14px 12px 0;
+  border-right: none;
+  background: transparent;
+}
+
+.mg-menu .ant-menu-item {
+  height: 42px;
+  line-height: 42px;
+  border-radius: 12px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.mg-menu .ant-menu-item-selected {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.22), rgba(3, 105, 161, 0.28)) !important;
+}
+
+.mg-menu .ant-menu-item:hover {
+  transform: translateX(2px);
+}
+
+.mg-menu .ant-menu-item .ant-menu-title-content {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.mg-menu .ant-menu-item .anticon {
+  font-size: 18px;
+}
+
+.mg-sider-footer {
+  margin: 14px 14px 16px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(163, 209, 223, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mg-sider-footer-title.ant-typography {
+  display: block;
+  margin: 0;
+  color: #dcf8f5;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mg-sider-footer-desc.ant-typography {
+  display: block;
+  margin: 8px 0 0;
+  color: rgba(210, 230, 238, 0.82);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.mg-main {
+  padding: 18px 18px 18px 10px;
+  background: transparent;
+}
+
+.mg-header {
+  height: 78px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(17, 34, 49, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--mg-shadow-soft);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  transition: box-shadow 0.2s ease;
+}
+
+.mg-header:hover {
+  box-shadow: 0 20px 40px rgba(17, 34, 49, 0.12);
+}
+
+.mg-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.mg-collapse-btn.ant-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #2a4253;
+  background: #f0f5f8;
+}
+
+.mg-collapse-btn.ant-btn:hover {
+  color: #0f766e !important;
+  background: #e0eeec !important;
+}
+
+.mg-header-title.ant-typography {
+  display: block;
+  margin: 0;
+  color: #163143;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mg-header-subtitle.ant-typography {
+  display: block;
+  margin: 2px 0 0;
+  color: #637b8a;
+  font-size: 12px;
+}
+
+.mg-user-chip {
+  height: 54px;
+  padding: 0 10px;
+  border: 1px solid rgba(17, 34, 49, 0.09);
+  border-radius: 16px;
+  background: #f8fcff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.mg-user-chip:hover {
+  border-color: rgba(15, 118, 110, 0.28);
+  transform: translateY(-1px);
+}
+
+.mg-user-avatar {
+  background: linear-gradient(145deg, #0891b2, #0f766e) !important;
+}
+
+.mg-user-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.mg-user-name.ant-typography {
+  margin: 0;
+  color: #163143;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.mg-user-role.ant-typography {
+  margin: 2px 0 0;
+  color: #6f8594;
+  font-size: 12px;
+}
+
+.mg-content {
+  min-height: calc(100vh - 128px);
+  padding: 2px;
+}
+
+@media (max-width: 992px) {
+  .mg-sider {
+    margin-left: 12px;
+  }
+
+  .mg-main {
+    padding-right: 12px;
+  }
+
+  .mg-header-title.ant-typography {
+    font-size: 17px;
+  }
+
+  .mg-header-subtitle.ant-typography {
+    display: none;
+  }
+
+  .mg-user-meta {
+    display: none;
+  }
+}

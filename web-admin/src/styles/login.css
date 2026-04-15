@@ -1,0 +1,183 @@
+.mg-login-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    linear-gradient(130deg, #062237 0%, #0c3d48 48%, #0c6072 100%);
+}
+
+.mg-login-bg-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(6px);
+}
+
+.mg-login-bg-orb-a {
+  top: -150px;
+  left: -120px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(64, 214, 198, 0.5) 0%, transparent 62%);
+}
+
+.mg-login-bg-orb-b {
+  right: -160px;
+  bottom: -220px;
+  width: 640px;
+  height: 640px;
+  background: radial-gradient(circle, rgba(33, 153, 222, 0.48) 0%, transparent 64%);
+}
+
+.mg-login-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.9), transparent 75%);
+}
+
+.mg-login-card.ant-card {
+  width: 100%;
+  max-width: 980px;
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(150, 211, 233, 0.3);
+  box-shadow: 0 36px 70px rgba(2, 23, 34, 0.45);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(360px, 1fr);
+  animation: login-fade-up 0.28s ease-out;
+}
+
+.mg-login-brand {
+  padding: 52px 48px 48px;
+  color: #eafcff;
+  background:
+    radial-gradient(circle at 5% 0%, rgba(126, 231, 220, 0.4), transparent 48%),
+    linear-gradient(170deg, #063346, #0a5a65 60%, #117280);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mg-login-brand-icon {
+  width: 76px;
+  height: 76px;
+  margin-bottom: 22px;
+  border-radius: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #fff;
+  background: linear-gradient(155deg, #1be5d0, #0ea5a2);
+  box-shadow: 0 16px 24px rgba(0, 94, 102, 0.45);
+}
+
+.mg-login-brand-title.ant-typography {
+  margin: 0 !important;
+  color: #f2ffff !important;
+  font-size: 34px !important;
+  font-weight: 700 !important;
+}
+
+.mg-login-brand-subtitle.ant-typography {
+  margin-top: 12px;
+  color: rgba(225, 250, 255, 0.86);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.mg-login-form-wrap {
+  background: rgba(246, 252, 255, 0.96);
+  padding: 40px 38px 34px;
+  border-left: 1px solid rgba(17, 34, 49, 0.07);
+}
+
+.mg-login-form-wrap .ant-form-item-label > label {
+  color: #294355;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mg-login-form-wrap .ant-input-affix-wrapper,
+.mg-login-form-wrap .ant-input {
+  border-radius: 12px !important;
+  border-color: #d4e0e8;
+}
+
+.mg-login-form-wrap .ant-input-affix-wrapper:hover,
+.mg-login-form-wrap .ant-input-affix-wrapper-focused {
+  border-color: #0f766e !important;
+}
+
+.mg-login-submit.ant-btn-primary {
+  height: 46px;
+  border: none !important;
+  background: linear-gradient(135deg, #0f766e, #0284c7) !important;
+  box-shadow: 0 12px 20px rgba(12, 122, 124, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mg-login-submit.ant-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(12, 122, 124, 0.34);
+}
+
+.mg-login-demo.ant-alert {
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  background: rgba(232, 247, 247, 0.72);
+}
+
+.mg-login-demo-title.ant-typography {
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mg-login-fill-btn.ant-btn-link {
+  padding-left: 0;
+  color: #0f766e;
+  font-weight: 700;
+}
+
+@keyframes login-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .mg-login-page {
+    padding: 16px;
+  }
+
+  .mg-login-card.ant-card {
+    grid-template-columns: 1fr;
+  }
+
+  .mg-login-brand {
+    padding: 30px 26px 26px;
+  }
+
+  .mg-login-brand-title.ant-typography {
+    font-size: 28px !important;
+  }
+
+  .mg-login-form-wrap {
+    padding: 26px;
+  }
+}

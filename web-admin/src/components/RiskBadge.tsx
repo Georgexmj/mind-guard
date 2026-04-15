@@ -11,19 +11,19 @@ const riskConfig = {
     color: 'success',
     icon: <CheckCircleOutlined />,
     text: '正常',
-    hexColor: '#52c41a',
+    hexColor: '#16a34a',
   },
   mild_risk: {
     color: 'warning',
     icon: <WarningOutlined />,
     text: '轻度风险',
-    hexColor: '#faad14',
+    hexColor: '#d97706',
   },
   high_risk: {
     color: 'error',
     icon: <CloseCircleOutlined />,
     text: '高风险',
-    hexColor: '#ff4d4f',
+    hexColor: '#dc2626',
   },
 }
 
@@ -39,7 +39,7 @@ export default function RiskBadge({ riskLevel, size = 'default' }: RiskBadgeProp
           gap: 8,
           padding: '8px 20px',
           borderRadius: 24,
-          background: `${config.hexColor}18`,
+          background: `${config.hexColor}14`,
           border: `2px solid ${config.hexColor}`,
           color: config.hexColor,
           fontWeight: 700,
@@ -56,7 +56,7 @@ export default function RiskBadge({ riskLevel, size = 'default' }: RiskBadgeProp
     <Tag
       color={config.color}
       icon={config.icon}
-      style={{ fontWeight: 500, borderRadius: 12, padding: '0 10px' }}
+      style={{ fontWeight: 600, borderRadius: 12, padding: '2px 10px' }}
     >
       {config.text}
     </Tag>

@@ -1,85 +1,117 @@
 <template>
-  <div />
+  <view />
 </template>
 
 <script setup>
-import { onLaunch, onShow } from '@dcloudio/uni-app'
+import { onLaunch } from '@dcloudio/uni-app'
 import { useAuthStore } from './store/auth'
 
 onLaunch(() => {
   const auth = useAuthStore()
   auth.init()
 })
-
-onShow(() => {
-  // App becomes visible
-})
 </script>
 
 <style>
-/* Global elderly-friendly styles */
+:root {
+  --mg-bg: #ecf4f8;
+  --mg-bg-elevated: #f7fcff;
+  --mg-text-primary: #0e2f42;
+  --mg-text-secondary: #4f6d80;
+  --mg-brand: #0e7a6f;
+  --mg-brand-strong: #0b655c;
+  --mg-accent: #027dbd;
+  --mg-danger: #dc2626;
+  --mg-warning: #c97708;
+  --mg-success: #15803d;
+  --mg-card-border: rgba(17, 34, 49, 0.1);
+  --mg-shadow-soft: 0 14rpx 28rpx rgba(17, 34, 49, 0.09);
+  --mg-shadow-strong: 0 20rpx 38rpx rgba(17, 34, 49, 0.14);
+  --mg-touch-min: 96rpx;
+}
+
 page {
-  background-color: #f5f7fb;
-  font-size: 38rpx;
-  line-height: 1.75;
-  color: #1f2d3d;
+  background:
+    radial-gradient(circle at 4% -20%, rgba(14, 122, 111, 0.14), transparent 54%),
+    radial-gradient(circle at 98% 0%, rgba(2, 125, 189, 0.1), transparent 52%),
+    var(--mg-bg);
+  color: var(--mg-text-primary);
+  font-size: 34rpx;
+  line-height: 1.72;
 }
 
 view,
 text,
-label {
+label,
+button,
+input,
+textarea {
   box-sizing: border-box;
 }
 
 text,
 label {
-  font-size: 32rpx;
-  line-height: 1.75;
-  color: #1f2d3d;
+  color: var(--mg-text-primary);
+  line-height: 1.72;
 }
 
-/* Large touch targets */
 button {
-  min-height: 96rpx;
-  font-size: 34rpx;
-  border-radius: 16rpx;
+  min-height: var(--mg-touch-min);
+  border-radius: 999rpx;
+  font-size: 36rpx;
+  font-weight: 700;
   line-height: 1.2;
 }
 
 input,
 textarea {
-  font-size: 32rpx;
-  line-height: 1.7;
+  font-size: 34rpx;
+  line-height: 1.4;
 }
 
-.card,
-.elder-card {
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  margin: 20rpx 30rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+.mg-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 2rpx solid var(--mg-card-border);
+  border-radius: 26rpx;
+  box-shadow: var(--mg-shadow-soft);
+  animation: mg-fade-up 0.28s ease-out;
 }
 
-.btn-primary,
-.elder-btn-primary {
-  background-color: #4a90d9;
+.mg-button-primary {
+  background: linear-gradient(135deg, var(--mg-brand), var(--mg-accent));
   color: #ffffff;
   border: none;
-  min-height: 100rpx;
-  font-size: 36rpx;
-  font-weight: 700;
-  border-radius: 48rpx;
-  letter-spacing: 1rpx;
+  box-shadow: 0 12rpx 22rpx rgba(15, 118, 110, 0.24);
 }
 
-.btn-secondary,
-.elder-btn-secondary {
-  background-color: #ffffff;
-  color: #4a90d9;
-  border: 2rpx solid #4a90d9;
-  min-height: 100rpx;
-  font-size: 36rpx;
-  border-radius: 48rpx;
+.mg-button-secondary {
+  background: #ffffff;
+  color: var(--mg-brand);
+  border: 2rpx solid rgba(15, 118, 110, 0.28);
+}
+
+button:active {
+  transform: scale(0.985);
+}
+
+@keyframes mg-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mg-card {
+    animation: none;
+  }
+
+  button:active {
+    transform: none;
+  }
 }
 </style>

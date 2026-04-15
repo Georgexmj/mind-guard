@@ -194,16 +194,18 @@ export default function ElderDetailPage() {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div className="mg-page">
+      <div className="mg-page-header" style={{ alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/elders')} style={{ borderRadius: 8 }}>
           返回列表
         </Button>
         <div>
-          <Title level={4} style={{ margin: 0 }}>
+          <Title level={4} className="mg-page-title">
             老人详情
           </Title>
-          <Text type="secondary">查看老人基本信息与评估历史</Text>
+          <Text className="mg-page-subtitle">查看老人基本信息与评估历史</Text>
+          </div>
         </div>
       </div>
 

@@ -1,59 +1,45 @@
-<template>
+﻿<template>
   <view class="profile-page">
-    <!-- User Header -->
-    <view class="user-header">
-      <view class="avatar-circle">
-        <text class="avatar-text">{{ avatarLetter }}</text>
+    <view class="profile-hero">
+      <view class="hero-avatar">
+        <text class="hero-avatar-text">{{ avatarLetter }}</text>
       </view>
-      <view class="user-info">
-        <text class="user-name">{{ authStore.userName }}</text>
-        <text class="user-phone">{{ maskedPhone }}</text>
-        <view class="user-role-badge">
-          <text class="role-text">{{ roleLabel }}</text>
-        </view>
+      <view class="hero-info">
+        <text class="hero-name">{{ authStore.userName }}</text>
+        <text class="hero-phone">{{ maskedPhone }}</text>
+        <text class="hero-role">{{ roleLabel }}</text>
       </view>
     </view>
 
-    <!-- Stats Row -->
-    <view class="stats-card">
+    <view class="mg-card stats-card">
       <view class="stat-item">
-        <text class="stat-number">{{ totalAssessments }}</text>
+        <text class="stat-value">{{ totalAssessments }}</text>
         <text class="stat-label">累计评估</text>
       </view>
       <view class="stat-divider" />
       <view class="stat-item">
-        <text class="stat-number" :style="{ color: latestRiskColor }">{{ latestRiskLabel }}</text>
-        <text class="stat-label">最近结果</text>
+        <text class="stat-value" :style="{ color: latestRiskColor }">{{ latestRiskLabel }}</text>
+        <text class="stat-label">最近风险</text>
       </view>
       <view class="stat-divider" />
       <view class="stat-item">
-        <text class="stat-number">{{ avgScore }}</text>
+        <text class="stat-value">{{ avgScore }}</text>
         <text class="stat-label">平均分</text>
       </view>
     </view>
 
-    <!-- History Section -->
     <view class="section">
-      <view class="section-header">
-        <text class="section-title">📋 评估历史记录</text>
+      <text class="section-title">评估历史记录</text>
+      <view v-if="loadingHistory" class="mg-card loading-box">
+        <text class="loading-text">正在加载历史...</text>
       </view>
-
-      <view v-if="loadingHistory" class="loading-box">
-        <text class="loading-text">加载中...</text>
-      </view>
-
-      <view v-else-if="sessions.length > 0" class="history-list">
-        <view
-          v-for="session in sessions"
-          :key="session.id"
-          class="history-item"
-          @tap="() => viewResult(session.id)"
-        >
+      <view v-else-if="sessions.length > 0" class="mg-card history-list">
+        <view v-for="session in sessions" :key="session.id" class="history-item" @tap="() => viewResult(session.id)">
           <view class="history-left">
-            <view class="risk-indicator" :style="{ backgroundColor: getRiskColor(getSessionRisk(session)) }">
-              <text class="risk-indicator-text">{{ getRiskIcon(getSessionRisk(session)) }}</text>
+            <view class="history-icon" :style="{ backgroundColor: getRiskColor(getSessionRisk(session)) }">
+              <text class="history-icon-text">{{ getRiskIcon(getSessionRisk(session)) }}</text>
             </view>
-            <view class="history-info">
+            <view>
               <text class="history-date">{{ formatDate(session.created_at) }}</text>
               <text class="history-score">{{ getSessionScoreText(session) }}</text>
               <text class="history-risk" :style="{ color: getRiskColor(getSessionRisk(session)) }">
@@ -64,59 +50,44 @@
           <text class="history-arrow">›</text>
         </view>
       </view>
-
-      <view v-else class="empty-history">
-        <text class="empty-icon">📭</text>
-        <text class="empty-text">暂无评估记录</text>
-        <button class="btn-go-assess" @tap="goToAssessment">开始第一次评估</button>
+      <view v-else class="mg-card empty-box">
+        <text class="empty-title">暂无评估记录</text>
+        <text class="empty-tip">完成首次评估后，这里会显示您的历史变化趋势。</text>
+        <button class="mg-button-primary empty-btn" @tap="goToAssessment">去做评估</button>
       </view>
     </view>
 
-    <!-- Menu Items -->
     <view class="section">
-      <text class="section-title">⚙️ 更多功能</text>
-      <view class="menu-list">
+      <text class="section-title">更多服务</text>
+      <view class="mg-card menu-list">
         <view class="menu-item" @tap="bindFamily">
-          <view class="menu-left">
-            <text class="menu-icon">👨‍👩‍👧</text>
-            <text class="menu-text">绑定家属</text>
+          <view>
+            <text class="menu-title">绑定家属</text>
+            <text class="menu-desc">让家人一起关注您的认知健康状态</text>
           </view>
-          <view class="menu-right">
-            <text class="menu-sub">让家人了解您的健康状态</text>
-            <text class="menu-arrow">›</text>
-          </view>
+          <text class="menu-arrow">›</text>
         </view>
-
         <view class="menu-item" @tap="contactUs">
-          <view class="menu-left">
-            <text class="menu-icon">📞</text>
-            <text class="menu-text">联系我们</text>
+          <view>
+            <text class="menu-title">联系客服</text>
+            <text class="menu-desc">遇到问题可联系社区健康研究团队</text>
           </view>
-          <view class="menu-right">
-            <text class="menu-sub">如有问题请联系</text>
-            <text class="menu-arrow">›</text>
-          </view>
+          <text class="menu-arrow">›</text>
         </view>
-
         <view class="menu-item" @tap="showAbout">
-          <view class="menu-left">
-            <text class="menu-icon">ℹ️</text>
-            <text class="menu-text">关于忆守心安</text>
+          <view>
+            <text class="menu-title">关于忆守心安</text>
+            <text class="menu-desc">版本 1.0.0</text>
           </view>
-          <view class="menu-right">
-            <text class="menu-sub">版本 1.0.0</text>
-            <text class="menu-arrow">›</text>
-          </view>
+          <text class="menu-arrow">›</text>
         </view>
       </view>
     </view>
 
-    <!-- Logout Button -->
-    <view class="logout-area">
-      <button class="btn-logout" @tap="handleLogout">退出登录</button>
+    <view class="logout-wrap">
+      <button class="logout-btn" @tap="handleLogout">退出登录</button>
     </view>
 
-    <!-- Bottom padding for tab bar -->
     <view style="height: 40rpx;" />
   </view>
 </template>
@@ -129,35 +100,31 @@ import { api } from '../../utils/request'
 
 const authStore = useAuthStore()
 
-// State
 const sessions = ref([])
 const loadingHistory = ref(false)
 
-// Computed user info
 const avatarLetter = computed(() => {
   const name = authStore.userName
-  return name ? name.charAt(0) : '用'
+  return name ? name.charAt(0) : '您'
 })
 
 const maskedPhone = computed(() => {
   const phone = authStore.userPhone
   if (!phone || phone.length < 11) return phone || '未设置'
-  return phone.slice(0, 3) + '****' + phone.slice(-4)
+  return `${phone.slice(0, 3)}****${phone.slice(-4)}`
 })
 
 const roleLabel = computed(() => {
-  const role = authStore.userRole
   const labels = {
     elder: '老年用户',
     elderly: '老年用户',
     family: '家属用户',
     doctor: '医护人员',
-    admin: '管理员'
+    admin: '系统管理员',
   }
-  return labels[role] || '用户'
+  return labels[authStore.userRole] || '用户'
 })
 
-// Stats computed
 const totalAssessments = computed(() => sessions.value.length)
 
 const latestRiskLabel = computed(() => {
@@ -166,36 +133,35 @@ const latestRiskLabel = computed(() => {
 })
 
 const latestRiskColor = computed(() => {
-  if (sessions.value.length === 0) return '#999999'
+  if (sessions.value.length === 0) return '#7890a0'
   return getRiskColor(getSessionRisk(sessions.value[0]))
 })
 
 const avgScore = computed(() => {
-  const scored = sessions.value.filter((s) => s.mmse_score !== null && s.mmse_score !== undefined)
+  const scored = sessions.value.filter((item) => item.mmse_score !== null && item.mmse_score !== undefined)
   if (scored.length === 0) return '--'
-  const sum = scored.reduce((acc, s) => acc + Number(s.mmse_score), 0)
-  const avg = sum / scored.length
-  return Math.round(avg)
+  const total = scored.reduce((sum, item) => sum + Number(item.mmse_score), 0)
+  return Math.round(total / scored.length)
 })
 
 function getRiskColor(level) {
   const colors = {
-    normal: '#52C41A',
-    low: '#52C41A',
-    mild_risk: '#FA8C16',
-    mild: '#FA8C16',
-    moderate: '#FA8C16',
-    mci: '#FA8C16',
-    in_progress: '#4A90D9',
-    pending: '#4A90D9',
-    completed: '#4A90D9',
-    high: '#F5222D',
-    high_risk: '#F5222D',
-    severe: '#F5222D',
-    ad: '#F5222D',
-    failed: '#999999'
+    normal: '#16a34a',
+    low: '#16a34a',
+    mild_risk: '#d97706',
+    mild: '#d97706',
+    moderate: '#d97706',
+    mci: '#d97706',
+    in_progress: '#0284c7',
+    pending: '#0284c7',
+    completed: '#0284c7',
+    high: '#dc2626',
+    high_risk: '#dc2626',
+    severe: '#dc2626',
+    ad: '#dc2626',
+    failed: '#94a3b8',
   }
-  return colors[level] || '#999999'
+  return colors[level] || '#94a3b8'
 }
 
 function getRiskLabel(level) {
@@ -207,35 +173,35 @@ function getRiskLabel(level) {
     moderate: '中度风险',
     mci: '轻度风险',
     in_progress: '评估中',
-    pending: '评估中',
+    pending: '待处理',
     completed: '分析中',
     high: '高风险',
     high_risk: '高风险',
     severe: '高风险',
     ad: '高风险',
-    failed: '失败'
+    failed: '失败',
   }
   return labels[level] || '未知'
 }
 
 function getRiskIcon(level) {
   const icons = {
-    normal: '🙂',
-    low: '🙂',
-    mild_risk: '😐',
-    mild: '😐',
-    moderate: '😐',
-    mci: '😐',
-    in_progress: '⏳',
-    pending: '⏳',
-    completed: '⏳',
-    high: '⚠️',
-    high_risk: '⚠️',
-    severe: '⚠️',
-    ad: '⚠️',
-    failed: '❌'
+    normal: '✓',
+    low: '✓',
+    mild_risk: '!',
+    mild: '!',
+    moderate: '!',
+    mci: '!',
+    in_progress: '…',
+    pending: '…',
+    completed: '…',
+    high: '!',
+    high_risk: '!',
+    severe: '!',
+    ad: '!',
+    failed: '×',
   }
-  return icons[level] || '❔'
+  return icons[level] || '?'
 }
 
 function getSessionRisk(session) {
@@ -248,12 +214,12 @@ function getSessionRisk(session) {
 function getSessionScoreText(session) {
   if (session?.mmse_score !== null && session?.mmse_score !== undefined) {
     const score = Math.round(Number(session.mmse_score) * 10) / 10
-    return `MMSE: ${score} / 30分`
+    return `MMSE：${score} / 30`
   }
   if (session?.status === 'failed') return '结果生成失败'
-  if (session?.status === 'completed') return '结果生成中'
+  if (session?.status === 'completed') return '结果整理中'
   if (session?.status === 'in_progress') return '评估进行中'
-  return '评估中'
+  return '等待处理中'
 }
 
 function isEffectiveSession(session) {
@@ -287,15 +253,13 @@ async function enrichSessionWithResult(session) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return ''
+  if (!dateStr) return '--'
   const d = new Date(dateStr)
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
 function viewResult(sessionId) {
-  uni.navigateTo({
-    url: `/pages/result/index?sessionId=${sessionId}&fromHistory=true`
-  })
+  uni.navigateTo({ url: `/pages/result/index?sessionId=${sessionId}&fromHistory=true` })
 }
 
 function goToAssessment() {
@@ -305,10 +269,9 @@ function goToAssessment() {
 function bindFamily() {
   wx.showModal({
     title: '绑定家属',
-    content: '该功能正在开发中，将让您的家人能够查看您的认知健康状态。',
+    content: '该功能正在开发中，后续将支持家属查看评估进展并接收提醒。',
     showCancel: false,
-    confirmText: '知道了',
-    confirmColor: '#4A90D9'
+    confirmText: '我知道了',
   })
 }
 
@@ -319,45 +282,39 @@ function contactUs() {
       if (res.tapIndex === 0) {
         wx.makePhoneCall({
           phoneNumber: '0744-12345678',
-          fail: () => {
-            wx.showToast({ title: '拨号失败', icon: 'none' })
-          }
+          fail: () => wx.showToast({ title: '拨号失败', icon: 'none' }),
         })
       } else {
         wx.showModal({
           title: '意见反馈',
-          content: '如有任何问题或建议，请发送邮件至：mindguard@zjjxy.edu.cn',
+          content: '如有建议，请发送邮件至：mindguard@zjjxy.edu.cn',
           showCancel: false,
           confirmText: '好的',
-          confirmColor: '#4A90D9'
         })
       }
-    }
+    },
   })
 }
 
 function showAbout() {
   wx.showModal({
     title: '关于忆守心安',
-    content: '忆守心安 认知评估系统\n版本：1.0.0\n\n由张家界学院社区健康研究中心开发\n用于社区老年认知障碍早期筛查与干预\n\n© 2024 张家界学院',
+    content: '忆守心安 · 认知评估系统\n版本：1.0.0\n\n由张家界学院社区健康研究中心开发。',
     showCancel: false,
     confirmText: '关闭',
-    confirmColor: '#4A90D9'
   })
 }
 
 function handleLogout() {
   wx.showModal({
     title: '退出登录',
-    content: '确定要退出登录吗？',
+    content: '确定要退出当前账号吗？',
     confirmText: '退出',
     cancelText: '取消',
-    confirmColor: '#F5222D',
+    confirmColor: '#dc2626',
     success: (res) => {
-      if (res.confirm) {
-        authStore.logout()
-      }
-    }
+      if (res.confirm) authStore.logout()
+    },
   })
 }
 
@@ -369,10 +326,11 @@ async function loadHistory() {
     const list = [...listRaw]
       .filter((item) => isEffectiveSession(item))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
     sessions.value = await Promise.all(list.map((item) => enrichSessionWithResult(item)))
   } catch (err) {
-    console.error('Load history error:', err)
-    wx.showToast({ title: '加载历史失败', icon: 'none', duration: 2000 })
+    console.error('load history error', err)
+    wx.showToast({ title: '加载历史失败', icon: 'none' })
   } finally {
     loadingHistory.value = false
   }
@@ -392,149 +350,126 @@ onMounted(() => {
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background: #F0F4F8;
-  padding-bottom: 40rpx;
+  padding: 24rpx;
 }
 
-/* User Header */
-.user-header {
-  background: linear-gradient(135deg, #4A90D9, #2c6fad);
-  padding: 50rpx 30rpx 70rpx;
+.profile-hero {
+  border-radius: 30rpx;
+  padding: 26rpx 24rpx;
+  background:
+    radial-gradient(circle at 100% -10%, rgba(124, 58, 237, 0.26), transparent 44%),
+    linear-gradient(140deg, #0f766e, #0284c7);
+  box-shadow: var(--mg-shadow-strong);
   display: flex;
   align-items: center;
-  gap: 30rpx;
+  gap: 18rpx;
 }
 
-.avatar-circle {
-  width: 130rpx;
-  height: 130rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
-  border: 4rpx solid rgba(255, 255, 255, 0.5);
+.hero-avatar {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 32rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2rpx solid rgba(255, 255, 255, 0.44);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.avatar-text {
-  font-size: 60rpx;
-  font-weight: bold;
+.hero-avatar-text {
   color: #ffffff;
+  font-size: 48rpx;
+  font-weight: 800;
 }
 
-.user-info {
+.hero-info {
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
+  gap: 4rpx;
 }
 
-.user-name {
-  font-size: 48rpx;
-  font-weight: bold;
+.hero-name {
   color: #ffffff;
+  font-size: 42rpx;
+  font-weight: 800;
 }
 
-.user-phone {
-  font-size: 30rpx;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 2rpx;
+.hero-phone {
+  color: rgba(238, 252, 255, 0.9);
+  font-size: 27rpx;
 }
 
-.user-role-badge {
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 20rpx;
-  padding: 6rpx 20rpx;
-  display: inline-flex;
-  align-self: flex-start;
-}
-
-.role-text {
+.hero-role {
+  color: #e5faff;
   font-size: 28rpx;
-  color: #ffffff;
 }
 
-/* Stats Card */
 .stats-card {
-  background: #ffffff;
-  border-radius: 20rpx;
-  margin: -30rpx 30rpx 20rpx;
-  padding: 30rpx;
+  margin-top: -14rpx;
+  padding: 22rpx 12rpx;
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
+  box-shadow: var(--mg-shadow-soft);
 }
 
 .stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   flex: 1;
+  text-align: center;
 }
 
-.stat-number {
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #4A90D9;
-  margin-bottom: 8rpx;
+.stat-value {
+  display: block;
+  color: #0f766e;
+  font-size: 42rpx;
+  font-weight: 800;
 }
 
 .stat-label {
+  display: block;
+  margin-top: 4rpx;
+  color: #708899;
   font-size: 28rpx;
-  color: #999999;
 }
 
 .stat-divider {
   width: 2rpx;
-  height: 60rpx;
-  background: #EEEEEE;
+  height: 52rpx;
+  background: rgba(17, 34, 49, 0.1);
 }
 
-/* Section */
 .section {
-  margin: 0 30rpx 20rpx;
-}
-
-.section-header {
-  margin-bottom: 16rpx;
+  margin-top: 18rpx;
 }
 
 .section-title {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #333333;
   display: block;
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
+  color: #143445;
+  font-size: 34rpx;
+  font-weight: 800;
 }
 
-/* Loading */
 .loading-box {
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 50rpx;
+  padding: 28rpx;
   text-align: center;
 }
 
 .loading-text {
-  font-size: 32rpx;
-  color: #999999;
+  color: #6f8696;
+  font-size: 28rpx;
 }
 
-/* History List */
 .history-list {
-  background: #ffffff;
-  border-radius: 20rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
 .history-item {
+  padding: 20rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28rpx 24rpx;
-  border-bottom: 1rpx solid #F5F5F5;
+  border-bottom: 2rpx solid rgba(17, 34, 49, 0.06);
 }
 
 .history-item:last-child {
@@ -544,157 +479,123 @@ onMounted(() => {
 .history-left {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 12rpx;
   flex: 1;
 }
 
-.risk-indicator {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
+.history-icon {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
-.risk-indicator-text {
-  font-size: 32rpx;
-}
-
-.history-info {
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
+.history-icon-text {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 800;
 }
 
 .history-date {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333333;
+  display: block;
+  color: #1f3d4f;
+  font-size: 30rpx;
+  font-weight: 700;
 }
 
 .history-score {
-  font-size: 28rpx;
-  color: #666666;
+  display: block;
+  margin-top: 2rpx;
+  color: #6d8595;
+  font-size: 29rpx;
 }
 
 .history-risk {
-  font-size: 28rpx;
-  font-weight: bold;
+  display: block;
+  margin-top: 2rpx;
+  font-size: 29rpx;
+  font-weight: 700;
 }
 
 .history-arrow {
-  font-size: 44rpx;
-  color: #CCCCCC;
-}
-
-/* Empty History */
-.empty-history {
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 60rpx 30rpx;
-  text-align: center;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.empty-icon {
-  font-size: 80rpx;
-  margin-bottom: 20rpx;
-}
-
-.empty-text {
+  color: #8ba0ae;
   font-size: 36rpx;
-  color: #666666;
-  margin-bottom: 30rpx;
 }
 
-.btn-go-assess {
-  background: linear-gradient(135deg, #52C41A, #389E0D);
-  color: #ffffff;
-  font-size: 34rpx;
-  font-weight: bold;
-  height: 88rpx;
-  border-radius: 44rpx;
-  border: none;
-  padding: 0 50rpx;
+.empty-box {
+  padding: 34rpx 24rpx;
+  text-align: center;
 }
 
-/* Menu List */
+.empty-title {
+  display: block;
+  color: #2c4759;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.empty-tip {
+  display: block;
+  margin-top: 8rpx;
+  color: #738b9b;
+  font-size: 27rpx;
+}
+
+.empty-btn {
+  margin-top: 16rpx;
+}
+
 .menu-list {
-  background: #ffffff;
-  border-radius: 20rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
 .menu-item {
+  padding: 20rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 30rpx 24rpx;
-  border-bottom: 1rpx solid #F5F5F5;
-  min-height: 110rpx;
+  border-bottom: 2rpx solid rgba(17, 34, 49, 0.06);
 }
 
 .menu-item:last-child {
   border-bottom: none;
 }
 
-.menu-item:active {
-  background: #F8F9FA;
+.menu-title {
+  display: block;
+  color: #1f3d4f;
+  font-size: 30rpx;
+  font-weight: 700;
 }
 
-.menu-left {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-
-.menu-icon {
-  font-size: 44rpx;
-}
-
-.menu-text {
-  font-size: 36rpx;
-  color: #333333;
-  font-weight: 500;
-}
-
-.menu-right {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.menu-sub {
+.menu-desc {
+  display: block;
+  margin-top: 4rpx;
+  color: #6e8595;
   font-size: 28rpx;
-  color: #AAAAAA;
 }
 
 .menu-arrow {
-  font-size: 44rpx;
-  color: #CCCCCC;
+  color: #8aa0ae;
+  font-size: 36rpx;
 }
 
-/* Logout Area */
-.logout-area {
-  margin: 20rpx 30rpx 0;
+.logout-wrap {
+  margin-top: 20rpx;
 }
 
-.btn-logout {
+.logout-btn {
   width: 100%;
-  height: 96rpx;
+  min-height: 92rpx;
+  border-radius: 999rpx;
   background: #ffffff;
-  color: #F5222D;
-  font-size: 38rpx;
-  font-weight: bold;
-  border-radius: 48rpx;
-  border: 2rpx solid #FFCCC7;
-  box-shadow: 0 2rpx 12rpx rgba(245, 34, 45, 0.1);
-  letter-spacing: 2rpx;
+  color: #dc2626;
+  border: 2rpx solid rgba(220, 38, 38, 0.28);
+  font-size: 34rpx;
+  font-weight: 700;
+  box-shadow: 0 10rpx 18rpx rgba(220, 38, 38, 0.08);
 }
 </style>
+

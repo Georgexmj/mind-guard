@@ -1,98 +1,60 @@
-<template>
+﻿<template>
   <view class="voice-page">
-    <!-- Instructions -->
-    <view class="instruction-card">
-      <text class="instruction-label">📋 任务说明</text>
-      <text class="instruction-text">{{ taskText }}</text>
+    <view class="mg-card top-card">
+      <text class="top-title">语音任务</text>
+      <text class="top-desc">请清晰朗读下列内容：</text>
+      <text class="task-text">{{ taskText }}</text>
     </view>
 
-    <!-- Main Recording Area -->
-    <view class="recording-area">
-      <!-- Timer Display -->
-      <view class="timer-display" :class="{ active: isRecording }">
-        <text class="timer-text">{{ timerDisplay }}</text>
-        <text class="timer-label">{{ isRecording ? '正在录音' : '时长' }}</text>
+    <view class="mg-card recorder-card">
+      <view class="timer-wrap" :class="{ active: isRecording }">
+        <text class="timer-value">{{ timerDisplay }}</text>
+        <text class="timer-label">{{ isRecording ? '正在录音' : '录音时长' }}</text>
       </view>
 
-      <!-- Mic Button -->
-      <view
-        class="mic-button-wrap"
-        :class="{ recording: isRecording, recorded: isRecorded && !isRecording }"
-        @tap="toggleRecording"
-      >
-        <view class="mic-ripple" v-if="isRecording" />
-        <view class="mic-ripple mic-ripple-2" v-if="isRecording" />
-        <view class="mic-circle">
-          <text class="mic-icon">{{ isRecording ? '⏹' : (isRecorded ? '🔁' : '🎤') }}</text>
+      <view class="mic-wrap" :class="{ recording: isRecording, recorded: isRecorded && !isRecording }" @tap="toggleRecording">
+        <view v-if="isRecording" class="mic-wave wave-1" />
+        <view v-if="isRecording" class="mic-wave wave-2" />
+        <view class="mic-main">
+          <text class="mic-icon">{{ micIcon }}</text>
         </view>
       </view>
 
-      <!-- Mic Button Label -->
-      <text class="mic-label">{{ micLabel }}</text>
+      <text class="mic-tip">{{ micLabel }}</text>
 
-      <!-- Recording Progress Bar -->
       <view v-if="isRecording" class="record-progress">
         <view class="record-progress-fill" :style="{ width: recordProgressPercent + '%' }" />
       </view>
-      <text v-if="isRecording" class="record-limit-hint">最长可录制 {{ maxSeconds }} 秒</text>
+      <text v-if="isRecording" class="record-hint">最长可录制 {{ maxSeconds }} 秒</text>
     </view>
 
-    <!-- Playback Area (after recording) -->
-    <view v-if="isRecorded" class="playback-card">
-      <text class="playback-title">录音预览</text>
-      <view class="playback-controls">
-        <button
-          class="btn-play"
-          :class="{ playing: isPlaying }"
-          @tap="togglePlayback"
-        >
-          <text class="play-icon">{{ isPlaying ? '⏸' : '▶' }}</text>
-          <text class="play-text">{{ isPlaying ? '暂停播放' : '播放录音' }}</text>
+    <view v-if="isRecorded" class="mg-card play-card">
+      <text class="play-title">录音预览</text>
+      <view class="play-actions">
+        <button class="play-btn" :class="{ playing: isPlaying }" @tap="togglePlayback">
+          {{ isPlaying ? '暂停播放' : '播放录音' }}
         </button>
-
-        <button class="btn-rerecord" @tap="reRecord">
-          <text>🔄 重新录音</text>
-        </button>
+        <button class="reset-btn" @tap="reRecord">重新录音</button>
       </view>
     </view>
 
-    <!-- Status Messages -->
-    <view class="status-area">
+    <view class="status-zone">
       <view v-if="statusMsg" class="status-box" :class="statusType">
         <text class="status-text">{{ statusMsg }}</text>
       </view>
     </view>
 
-    <!-- Action Buttons -->
-    <view class="actions-area">
-      <!-- Upload & Submit -->
-      <button
-        v-if="isRecorded && !uploading"
-        class="btn-submit"
-        @tap="handleSubmit"
-      >
-        <text>✓ 提交录音</text>
-      </button>
-
-      <button
-        v-if="uploading"
-        class="btn-submit btn-uploading"
-        loading
-        disabled
-      >
-        <text>上传中...</text>
-      </button>
-
-      <!-- Skip (fallback) -->
-      <button class="btn-skip" @tap="handleSkip">跳过此题</button>
+    <view class="action-zone">
+      <button v-if="isRecorded && !uploading" class="submit-btn" @tap="handleSubmit">提交语音</button>
+      <button v-if="uploading" class="submit-btn uploading" loading disabled>上传中...</button>
+      <button class="skip-btn" @tap="handleSkip">跳过此题</button>
     </view>
 
-    <!-- Tips -->
-    <view class="tips-card">
-      <text class="tips-title">💡 录音建议</text>
-      <text class="tips-item">• 靠近手机麦克风，保持约20厘米距离</text>
-      <text class="tips-item">• 说话速度适中，吐字清晰</text>
-      <text class="tips-item">• 录制完成后可先试听再提交</text>
+    <view class="tip-card">
+      <text class="tip-title">录音建议</text>
+      <text class="tip-item">1. 尽量靠近麦克风，保持稳定音量。</text>
+      <text class="tip-item">2. 语速适中，吐字清晰。</text>
+      <text class="tip-item">3. 提交前可先回放确认质量。</text>
     </view>
   </view>
 </template>
@@ -101,12 +63,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 
-// Page params
 const questionIndex = ref(0)
 const questionId = ref('')
-const taskText = ref('请大声朗读以下词语，并尝试记忆：\n苹果、汽车、诚实、丝绸、玫瑰')
+const taskText = ref('请大声朗读并尝试记忆：苹果、汽车、诚信、丝绸、玫瑰。')
 
-// Recording state
 const isRecording = ref(false)
 const isRecorded = ref(false)
 const isPlaying = ref(false)
@@ -115,35 +75,34 @@ const tempFilePath = ref('')
 const statusMsg = ref('')
 const statusType = ref('info')
 
-// Timer
 const seconds = ref(0)
 const maxSeconds = 60
 let timerInterval = null
 let autoStopTimeout = null
 
-// Recorder manager
 let recorderManager = null
 let innerAudioContext = null
 
-// Computed
 const timerDisplay = computed(() => {
-  const s = seconds.value
-  const m = Math.floor(s / 60)
-  const sec = s % 60
+  const m = Math.floor(seconds.value / 60)
+  const sec = seconds.value % 60
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 })
 
-const recordProgressPercent = computed(() => {
-  return Math.min((seconds.value / maxSeconds) * 100, 100)
+const recordProgressPercent = computed(() => Math.min((seconds.value / maxSeconds) * 100, 100))
+
+const micIcon = computed(() => {
+  if (isRecording.value) return '■'
+  if (isRecorded.value) return '✓'
+  return '🎙️'
 })
 
 const micLabel = computed(() => {
   if (isRecording.value) return '点击停止录音'
-  if (isRecorded.value) return '点击重新录音'
+  if (isRecorded.value) return '点击可重新录制'
   return '点击开始录音'
 })
 
-// Init on load
 onLoad((options) => {
   if (options.questionIndex !== undefined) {
     questionIndex.value = parseInt(options.questionIndex)
@@ -169,7 +128,7 @@ function initRecorder() {
 
   recorderManager.onStart(() => {
     isRecording.value = true
-    statusMsg.value = '正在录音，请说话...'
+    statusMsg.value = '正在录音，请开始作答...'
     statusType.value = 'recording'
     startTimer()
   })
@@ -177,13 +136,14 @@ function initRecorder() {
   recorderManager.onStop((res) => {
     isRecording.value = false
     stopTimer()
+
     if (res.tempFilePath) {
       tempFilePath.value = res.tempFilePath
       isRecorded.value = true
-      statusMsg.value = '录音完成！可以试听或直接提交'
+      statusMsg.value = '录音完成，可试听后提交。'
       statusType.value = 'success'
     } else {
-      statusMsg.value = '录音出现问题，请重试'
+      statusMsg.value = '录音失败，请重新尝试。'
       statusType.value = 'error'
     }
   })
@@ -193,9 +153,9 @@ function initRecorder() {
     stopTimer()
     console.error('Recorder error:', err)
     if (err.errMsg && err.errMsg.includes('auth')) {
-      statusMsg.value = '请先授权麦克风权限后重试'
+      statusMsg.value = '请先授权麦克风权限。'
     } else {
-      statusMsg.value = '录音失败：' + (err.errMsg || '未知错误')
+      statusMsg.value = `录音失败：${err.errMsg || '未知错误'}`
     }
     statusType.value = 'error'
   })
@@ -210,7 +170,6 @@ function toggleRecording() {
 }
 
 function startRecording() {
-  // Check permission first
   wx.authorize({
     scope: 'scope.record',
     success: () => {
@@ -221,10 +180,9 @@ function startRecording() {
         sampleRate: 16000,
         numberOfChannels: 1,
         encodeBitRate: 48000,
-        format: 'mp3'
+        format: 'mp3',
       })
 
-      // Auto stop safety net
       autoStopTimeout = setTimeout(() => {
         if (isRecording.value) {
           stopRecording()
@@ -234,16 +192,14 @@ function startRecording() {
     fail: () => {
       wx.showModal({
         title: '需要麦克风权限',
-        content: '请在设置中开启麦克风权限，才能进行语音录制',
+        content: '请在设置中开启麦克风权限后再试。',
         confirmText: '去设置',
         cancelText: '取消',
         success: (res) => {
-          if (res.confirm) {
-            wx.openSetting()
-          }
-        }
+          if (res.confirm) wx.openSetting()
+        },
       })
-    }
+    },
   })
 }
 
@@ -257,7 +213,7 @@ function stopRecording() {
 
 function startTimer() {
   timerInterval = setInterval(() => {
-    seconds.value++
+    seconds.value += 1
     if (seconds.value >= maxSeconds) {
       stopRecording()
     }
@@ -271,36 +227,39 @@ function stopTimer() {
   }
 }
 
+function ensureAudioContext() {
+  if (!innerAudioContext) {
+    innerAudioContext = wx.createInnerAudioContext()
+    innerAudioContext.onEnded(() => {
+      isPlaying.value = false
+      statusMsg.value = '播放完成'
+      statusType.value = 'success'
+    })
+    innerAudioContext.onError((err) => {
+      isPlaying.value = false
+      console.error('Playback error:', err)
+      statusMsg.value = '播放失败，但仍可提交录音。'
+      statusType.value = 'error'
+    })
+  }
+}
+
 function togglePlayback() {
   if (!tempFilePath.value) return
 
+  ensureAudioContext()
+
   if (isPlaying.value) {
-    if (innerAudioContext) {
-      innerAudioContext.pause()
-    }
+    innerAudioContext.pause()
     isPlaying.value = false
     return
   }
 
-  innerAudioContext = wx.createInnerAudioContext()
   innerAudioContext.src = tempFilePath.value
-  innerAudioContext.onPlay(() => {
-    isPlaying.value = true
-    statusMsg.value = '正在播放...'
-    statusType.value = 'info'
-  })
-  innerAudioContext.onEnded(() => {
-    isPlaying.value = false
-    statusMsg.value = '播放完成'
-    statusType.value = 'success'
-  })
-  innerAudioContext.onError((err) => {
-    isPlaying.value = false
-    console.error('Playback error:', err)
-    statusMsg.value = '播放失败，但您可以直接提交'
-    statusType.value = 'error'
-  })
   innerAudioContext.play()
+  isPlaying.value = true
+  statusMsg.value = '正在播放录音...'
+  statusType.value = 'info'
 }
 
 function reRecord() {
@@ -329,7 +288,7 @@ async function handleSubmit() {
       questionIndex: questionIndex.value,
       filePath: tempFilePath.value,
       durationSec: seconds.value,
-      transcript: ''
+      transcript: '',
     })
 
     wx.showToast({ title: '语音已保存', icon: 'success', duration: 1200 })
@@ -339,7 +298,7 @@ async function handleSubmit() {
     }, 1200)
   } catch (err) {
     console.error('Save voice task error:', err)
-    statusMsg.value = '保存失败，请重试'
+    statusMsg.value = '保存失败，请重试。'
     statusType.value = 'error'
   } finally {
     uploading.value = false
@@ -349,31 +308,43 @@ async function handleSubmit() {
 function handleSkip() {
   wx.showModal({
     title: '跳过此题',
-    content: '跳过语音题会影响评估准确性，确定要跳过吗？',
+    content: '跳过语音题会影响评估准确性，确定跳过吗？',
     confirmText: '跳过',
     cancelText: '继续录音',
-    confirmColor: '#FA8C16',
+    confirmColor: '#d97706',
     success: (res) => {
       if (res.confirm) {
         uni.$emit('voiceTaskCompleted', {
           questionIndex: questionIndex.value,
           filePath: null,
-          skipped: true
+          skipped: true,
         })
         uni.navigateBack()
       }
-    }
+    },
   })
 }
 
 function cleanup() {
   stopTimer()
-  if (autoStopTimeout) clearTimeout(autoStopTimeout)
+  if (autoStopTimeout) {
+    clearTimeout(autoStopTimeout)
+    autoStopTimeout = null
+  }
   if (isRecording.value) {
-    try { recorderManager.stop() } catch (e) {}
+    try {
+      recorderManager.stop()
+    } catch (e) {
+      // ignore
+    }
   }
   if (innerAudioContext) {
-    try { innerAudioContext.stop(); innerAudioContext.destroy() } catch (e) {}
+    try {
+      innerAudioContext.stop()
+      innerAudioContext.destroy()
+    } catch (e) {
+      // ignore
+    }
   }
 }
 </script>
@@ -381,305 +352,287 @@ function cleanup() {
 <style scoped>
 .voice-page {
   min-height: 100vh;
-  background: #F0F4F8;
-  padding: 0 0 60rpx;
-  display: flex;
-  flex-direction: column;
+  padding-bottom: 52rpx;
 }
 
-/* Instruction Card */
-.instruction-card {
-  background: #ffffff;
-  padding: 30rpx;
-  margin: 20rpx 30rpx;
-  border-radius: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+.top-card {
+  margin: 16rpx 24rpx 0;
+  padding: 24rpx;
 }
 
-.instruction-label {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #4A90D9;
+.top-title {
   display: block;
-  margin-bottom: 16rpx;
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #143445;
 }
 
-.instruction-text {
-  font-size: 40rpx;
-  color: #222222;
-  line-height: 1.8;
-  font-weight: 500;
+.top-desc {
   display: block;
-  white-space: pre-wrap;
+  margin-top: 8rpx;
+  font-size: 29rpx;
+  color: #607889;
 }
 
-/* Recording Area */
-.recording-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40rpx 30rpx;
-  background: #ffffff;
-  margin: 0 30rpx;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+.task-text {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 35rpx;
+  color: #16384b;
+  font-weight: 700;
+  line-height: 1.7;
 }
 
-/* Timer */
-.timer-display {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 40rpx;
-  padding: 20rpx 40rpx;
+.recorder-card {
+  margin: 16rpx 24rpx 0;
+  padding: 28rpx 20rpx;
+  text-align: center;
+}
+
+.timer-wrap {
   border-radius: 16rpx;
-  background: #F8F9FA;
-  min-width: 200rpx;
+  padding: 10rpx 14rpx;
+  background: #f4f8fb;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.timer-display.active {
-  background: #FFF0F6;
+.timer-wrap.active {
+  background: #fff0f6;
 }
 
-.timer-text {
-  font-size: 72rpx;
-  font-weight: bold;
-  color: #333333;
+.timer-value {
+  font-size: 66rpx;
+  color: #143445;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
-.timer-display.active .timer-text {
-  color: #EB2F96;
+.timer-wrap.active .timer-value {
+  color: #db2777;
 }
 
 .timer-label {
-  font-size: 28rpx;
-  color: #999999;
-  margin-top: 4rpx;
+  color: #6e8899;
+  font-size: 29rpx;
 }
 
-/* Mic Button */
-.mic-button-wrap {
-  width: 220rpx;
-  height: 220rpx;
+.mic-wrap {
+  width: 210rpx;
+  height: 210rpx;
+  margin: 22rpx auto 10rpx;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 30rpx;
 }
 
-.mic-ripple {
+.mic-wave {
   position: absolute;
-  width: 220rpx;
-  height: 220rpx;
+  width: 210rpx;
+  height: 210rpx;
   border-radius: 50%;
-  background: rgba(235, 47, 150, 0.15);
+  background: rgba(219, 39, 119, 0.14);
   animation: ripple 1.5s ease-out infinite;
 }
 
-.mic-ripple-2 {
-  background: rgba(235, 47, 150, 0.1);
+.wave-2 {
   animation-delay: 0.75s;
 }
 
 @keyframes ripple {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.6); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 
-.mic-circle {
-  width: 180rpx;
-  height: 180rpx;
+.mic-main {
+  width: 170rpx;
+  height: 170rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #EB2F96, #C41D7F);
+  background: linear-gradient(135deg, #db2777, #be185d);
+  box-shadow: 0 12rpx 24rpx rgba(219, 39, 119, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 30rpx rgba(235, 47, 150, 0.4);
-  z-index: 1;
-  transition: all 0.2s;
 }
 
-.mic-button-wrap.recording .mic-circle {
-  background: linear-gradient(135deg, #F5222D, #A8071A);
-  box-shadow: 0 8rpx 30rpx rgba(245, 34, 45, 0.4);
+.mic-wrap.recording .mic-main {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
 }
 
-.mic-button-wrap.recorded .mic-circle {
-  background: linear-gradient(135deg, #52C41A, #389E0D);
-  box-shadow: 0 8rpx 30rpx rgba(82, 196, 26, 0.4);
+.mic-wrap.recorded .mic-main {
+  background: linear-gradient(135deg, #16a34a, #15803d);
 }
 
 .mic-icon {
-  font-size: 72rpx;
+  color: #ffffff;
+  font-size: 52rpx;
+  font-weight: 800;
 }
 
-.mic-label {
-  font-size: 34rpx;
-  color: #555555;
-  font-weight: 500;
-  margin-bottom: 20rpx;
+.mic-tip {
+  display: block;
+  font-size: 31rpx;
+  color: #486273;
+  font-weight: 600;
 }
 
-/* Record Progress */
 .record-progress {
+  margin-top: 16rpx;
   width: 100%;
   height: 10rpx;
-  background: #E8E8E8;
-  border-radius: 5rpx;
+  border-radius: 999rpx;
+  background: #dce7ef;
   overflow: hidden;
-  margin-bottom: 8rpx;
 }
 
 .record-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #52C41A, #F5222D);
-  border-radius: 5rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #16a34a, #dc2626);
   transition: width 1s linear;
 }
 
-.record-limit-hint {
-  font-size: 28rpx;
-  color: #AAAAAA;
-}
-
-/* Playback Card */
-.playback-card {
-  background: #ffffff;
-  border-radius: 20rpx;
-  margin: 20rpx 30rpx 0;
-  padding: 30rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-}
-
-.playback-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333333;
+.record-hint {
   display: block;
-  margin-bottom: 20rpx;
+  margin-top: 8rpx;
+  font-size: 29rpx;
+  color: #8199a8;
 }
 
-.playback-controls {
+.play-card {
+  margin: 16rpx 24rpx 0;
+  padding: 20rpx;
+}
+
+.play-title {
+  display: block;
+  font-size: 32rpx;
+  color: #16384b;
+  font-weight: 700;
+  margin-bottom: 12rpx;
+}
+
+.play-actions {
   display: flex;
-  gap: 16rpx;
+  gap: 10rpx;
 }
 
-.btn-play {
+.play-btn,
+.reset-btn {
   flex: 1;
-  height: 88rpx;
-  background: #4A90D9;
-  color: #ffffff;
-  font-size: 32rpx;
-  border-radius: 44rpx;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-}
-
-.btn-play.playing {
-  background: #FA8C16;
-}
-
-.play-icon {
-  font-size: 32rpx;
-}
-
-.play-text {
-  font-size: 32rpx;
-}
-
-.btn-rerecord {
-  flex: 1;
-  height: 88rpx;
-  background: #ffffff;
-  color: #666666;
+  min-height: 94rpx;
+  border-radius: 999rpx;
   font-size: 30rpx;
-  border-radius: 44rpx;
-  border: 2rpx solid #E0E0E0;
+  font-weight: 700;
+  border: none;
 }
 
-/* Status Area */
-.status-area {
-  margin: 16rpx 30rpx 0;
+.play-btn {
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.play-btn.playing {
+  background: #d97706;
+}
+
+.reset-btn {
+  background: #ffffff;
+  color: #5f7889;
+  border: 2rpx solid #d3dee7;
+}
+
+.status-zone {
+  margin: 12rpx 24rpx 0;
 }
 
 .status-box {
-  padding: 20rpx 24rpx;
-  border-radius: 12rpx;
+  border-radius: 14rpx;
+  padding: 14rpx 16rpx;
 }
 
-.status-box.info { background: #E6F7FF; }
-.status-box.recording { background: #FFF0F6; }
-.status-box.success { background: #F6FFED; }
-.status-box.error { background: #FFF2F0; }
+.status-box.info {
+  background: #e6f7ff;
+}
+
+.status-box.recording {
+  background: #fff0f6;
+}
+
+.status-box.success {
+  background: #f6ffed;
+}
+
+.status-box.error {
+  background: #fff2f0;
+}
 
 .status-text {
-  font-size: 30rpx;
-  color: #333333;
+  color: #1f3e50;
+  font-size: 28rpx;
 }
 
-/* Actions Area */
-.actions-area {
-  margin: 24rpx 30rpx 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-
-.btn-submit {
-  width: 100%;
-  height: 100rpx;
-  background: linear-gradient(135deg, #52C41A, #389E0D);
-  color: #ffffff;
-  font-size: 40rpx;
-  font-weight: bold;
-  border-radius: 50rpx;
-  border: none;
-  box-shadow: 0 6rpx 20rpx rgba(82, 196, 26, 0.4);
-  letter-spacing: 2rpx;
-}
-
-.btn-uploading {
-  background: #B7EB8F;
-  box-shadow: none;
-}
-
-.btn-skip {
-  width: 100%;
-  height: 80rpx;
-  background: transparent;
-  color: #AAAAAA;
-  font-size: 30rpx;
-  border: 2rpx solid #E0E0E0;
-  border-radius: 40rpx;
-}
-
-/* Tips */
-.tips-card {
-  background: #FFFBE6;
-  border: 2rpx solid #FFE58F;
-  border-radius: 16rpx;
-  margin: 24rpx 30rpx 0;
-  padding: 24rpx;
+.action-zone {
+  margin: 14rpx 24rpx 0;
   display: flex;
   flex-direction: column;
   gap: 10rpx;
 }
 
-.tips-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #875500;
-  margin-bottom: 8rpx;
+.submit-btn {
+  width: 100%;
+  min-height: 92rpx;
+  border-radius: 999rpx;
+  border: none;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 700;
 }
 
-.tips-item {
-  font-size: 28rpx;
-  color: #AD6800;
-  line-height: 1.5;
+.submit-btn.uploading {
+  background: #9fd5bb;
+}
+
+.skip-btn {
+  width: 100%;
+  min-height: 92rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid #d3dee7;
+  background: #ffffff;
+  color: #8ba0ae;
+  font-size: 30rpx;
+}
+
+.tip-card {
+  margin: 14rpx 24rpx 0;
+  border-radius: 16rpx;
+  border: 2rpx solid #ffe58f;
+  background: #fffbe6;
+  padding: 18rpx;
+}
+
+.tip-title {
+  display: block;
+  color: #8a5b00;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.tip-item {
+  display: block;
+  margin-top: 6rpx;
+  color: #ad6800;
+  font-size: 27rpx;
+  line-height: 1.6;
 }
 </style>
+

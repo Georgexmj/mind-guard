@@ -86,7 +86,7 @@ export default function AssessmentsPage() {
   }, [queueRiskHigh])
 
   useEffect(() => {
-    fetchData()
+    void fetchData()
   }, [fetchData])
 
   const filteredRows = useMemo(() => {
@@ -128,7 +128,7 @@ export default function AssessmentsPage() {
             {(row.user_name || row.user?.name || '?')[0]}
           </Avatar>
           <div>
-            <div style={{ fontWeight: 600 }}>{row.user_name || row.user?.name || `用户#${row.user_id}`}</div>
+            <div style={{ fontWeight: 600 }}>{row.user_name || row.user?.name || `用户 #${row.user_id}`}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>
               {row.community_name || '-'}
             </Text>
@@ -158,8 +158,7 @@ export default function AssessmentsPage() {
     {
       title: '开始时间',
       width: 180,
-      render: (_, row) =>
-        row.started_at ? dayjs(row.started_at).format('YYYY-MM-DD HH:mm') : '-',
+      render: (_, row) => (row.started_at ? dayjs(row.started_at).format('YYYY-MM-DD HH:mm') : '-'),
     },
     {
       title: '创建时间',
@@ -185,15 +184,18 @@ export default function AssessmentsPage() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          评估管理
-        </Title>
-        <Text type="secondary">管理认知评估会话与报告</Text>
+    <div className="mg-page">
+      <div className="mg-page-header">
+        <div>
+          <Title level={4} className="mg-page-title">
+            评估管理
+          </Title>
+          <Text className="mg-page-subtitle">管理认知评估会话与报告</Text>
+        </div>
       </div>
 
       <Card
+        className="mg-panel-card"
         style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: '20px 24px' }}
       >
@@ -215,12 +217,12 @@ export default function AssessmentsPage() {
           </Col>
           <Col>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={fetchData}>
+              <Button icon={<ReloadOutlined />} onClick={() => void fetchData()}>
                 刷新
               </Button>
               {queueRiskHigh && (
                 <Button icon={<ExclamationCircleOutlined />} onClick={clearRiskFilter}>
-                  取消高风险队列筛选
+                  取消高风险筛选
                 </Button>
               )}
             </Space>

@@ -294,13 +294,15 @@ export default function EldersPage() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>老人管理</Title>
-        <Text type="secondary">共 {filteredRows.length} 位老人</Text>
+    <div className="mg-page">
+      <div className="mg-page-header">
+        <div>
+          <Title level={4} className="mg-page-title">老人管理</Title>
+          <Text className="mg-page-subtitle">共 {filteredRows.length} 位老人</Text>
+        </div>
       </div>
 
-      <Card style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '20px 24px' }}>
+      <Card className="mg-panel-card" style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '20px 24px' }}>
         <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
           <Col xs={24} sm={8} md={6}>
             <Input

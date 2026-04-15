@@ -1,22 +1,13 @@
 import { useState } from 'react'
-import {
-  Card,
-  Form,
-  Input,
-  Button,
-  Typography,
-  message,
-  Alert,
-  Divider,
-  Space,
-} from 'antd'
+import { Card, Form, Input, Button, Typography, message, Alert, Space } from 'antd'
 import { UserOutlined, LockOutlined, MedicineBoxOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../services/api'
 import { useAuthStore } from '../store/auth'
 import type { User } from '../types'
+import '../styles/login.css'
 
-const { Title, Text, Paragraph } = Typography
+const { Title, Text } = Typography
 
 type UserRole = User['role']
 
@@ -50,13 +41,11 @@ export default function LoginPage() {
     try {
       const response = await login(values.phone, values.password)
       setAuth(response.user, response.access_token)
-      messageApi.success('登录成功，欢迎回来！')
-      setTimeout(() => navigate(getDefaultRouteByRole(response.user?.role)), 500)
+      messageApi.success('登录成功，欢迎回来。')
+      setTimeout(() => navigate(getDefaultRouteByRole(response.user?.role)), 450)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } }
-      messageApi.error(
-        error?.response?.data?.detail || '登录失败，请检查手机号和密码'
-      )
+      messageApi.error(error?.response?.data?.detail || '登录失败，请检查手机号和密码。')
     } finally {
       setLoading(false)
     }
@@ -67,150 +56,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 40%, #1677ff 100%)',
-        padding: 24,
-      }}
-    >
+    <div className="mg-login-page">
       {contextHolder}
+      <div className="mg-login-bg-orb mg-login-bg-orb-a" />
+      <div className="mg-login-bg-orb mg-login-bg-orb-b" />
+      <div className="mg-login-bg-grid" />
 
-      {/* Background decoration */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundImage:
-            'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)',
-        }}
-      />
-
-      <Card
-        style={{
-          width: '100%',
-          maxWidth: 440,
-          borderRadius: 16,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
-          border: 'none',
-          position: 'relative',
-        }}
-        bodyStyle={{ padding: '40px 48px' }}
-      >
-        {/* Logo & Title */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              background: 'linear-gradient(135deg, #1677ff, #764ba2)',
-              borderRadius: 20,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-              boxShadow: '0 8px 24px rgba(22,119,255,0.3)',
-            }}
-          >
-            <MedicineBoxOutlined style={{ fontSize: 36, color: '#fff' }} />
+      <Card className="mg-login-card" bodyStyle={{ padding: 0 }}>
+        <div className="mg-login-brand">
+          <div className="mg-login-brand-icon">
+            <MedicineBoxOutlined />
           </div>
-          <Title level={2} style={{ margin: 0, color: '#1a1a2e', fontWeight: 700 }}>
-            MindGuard
+          <Title level={2} className="mg-login-brand-title">
+            MindGuard 管理台
           </Title>
-          <Text type="secondary" style={{ fontSize: 14 }}>
-            认知障碍筛查系统 · 管理平台
-          </Text>
+          <Text className="mg-login-brand-subtitle">社区老年认知障碍早筛与干预系统</Text>
         </div>
 
-        {/* Login Form */}
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleLogin}
-          requiredMark={false}
-          size="large"
-        >
-          <Form.Item
-            name="phone"
-            label={<Text strong>手机号码</Text>}
-            rules={[
-              { required: true, message: '请输入手机号码' },
-              { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号码' },
-            ]}
-          >
-            <Input
-              prefix={<UserOutlined style={{ color: '#bbb' }} />}
-              placeholder="请输入手机号码"
-              style={{ borderRadius: 8 }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="password"
-            label={<Text strong>登录密码</Text>}
-            rules={[{ required: true, message: '请输入登录密码' }]}
-          >
-            <Input.Password
-              prefix={<LockOutlined style={{ color: '#bbb' }} />}
-              placeholder="请输入登录密码"
-              style={{ borderRadius: 8 }}
-            />
-          </Form.Item>
-
-          <Form.Item style={{ marginTop: 8, marginBottom: 16 }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              block
-              style={{
-                height: 48,
-                borderRadius: 8,
-                fontSize: 16,
-                fontWeight: 600,
-                background: 'linear-gradient(135deg, #1677ff, #764ba2)',
-                border: 'none',
-                boxShadow: '0 4px 16px rgba(22,119,255,0.3)',
-              }}
+        <div className="mg-login-form-wrap">
+          <Form form={form} layout="vertical" onFinish={handleLogin} requiredMark={false} size="large">
+            <Form.Item
+              name="phone"
+              label="手机号"
+              rules={[
+                { required: true, message: '请输入手机号' },
+                { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' },
+              ]}
             >
-              {loading ? '登录中...' : '登 录'}
-            </Button>
-          </Form.Item>
-        </Form>
+              <Input
+                prefix={<UserOutlined />}
+                placeholder="请输入手机号"
+                autoComplete="username"
+              />
+            </Form.Item>
 
-        <Divider style={{ color: '#bbb', fontSize: 12 }}>演示账号</Divider>
+            <Form.Item
+              name="password"
+              label="登录密码"
+              rules={[{ required: true, message: '请输入登录密码' }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="请输入登录密码"
+                autoComplete="current-password"
+              />
+            </Form.Item>
 
-        <Alert
-          type="info"
-          showIcon={false}
-          style={{ borderRadius: 8, background: '#f0f7ff', border: '1px solid #bae0ff' }}
-          message={
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
-              <Paragraph style={{ margin: 0, fontSize: 13 }}>
-                <Text type="secondary">手机号：</Text>
-                <Text strong copyable>13800000001</Text>
-              </Paragraph>
-              <Paragraph style={{ margin: 0, fontSize: 13 }}>
-                <Text type="secondary">密　码：</Text>
-                <Text strong copyable>admin123</Text>
-              </Paragraph>
-              <Button
-                size="small"
-                type="link"
-                onClick={fillDemo}
-                style={{ padding: 0, height: 'auto', fontSize: 12 }}
-              >
-                点击一键填入
+            <Form.Item style={{ marginBottom: 12 }}>
+              <Button type="primary" htmlType="submit" loading={loading} block className="mg-login-submit">
+                {loading ? '登录中...' : '登录'}
               </Button>
-            </Space>
-          }
-        />
+            </Form.Item>
+          </Form>
+
+          <Alert
+            className="mg-login-demo"
+            showIcon={false}
+            message={
+              <Space direction="vertical" size={6}>
+                <Text className="mg-login-demo-title">演示账号</Text>
+                <Text>手机号：13800000001</Text>
+                <Text>密码：admin123</Text>
+                <Button type="link" onClick={fillDemo} className="mg-login-fill-btn">
+                  一键填充
+                </Button>
+              </Space>
+            }
+          />
+        </div>
       </Card>
     </div>
   )

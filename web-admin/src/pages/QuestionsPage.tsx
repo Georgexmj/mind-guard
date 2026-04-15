@@ -47,8 +47,6 @@ interface Question {
   options?: string[]
   correct_answer?: string
   difficulty: number
-  irt_a?: number
-  irt_b?: number
   is_active?: boolean
 }
 
@@ -129,7 +127,7 @@ export default function QuestionsPage() {
   }, [domainFilter, typeFilter])
 
   useEffect(() => {
-    fetchQuestions()
+    void fetchQuestions()
   }, [fetchQuestions])
 
   const handleExport = async () => {
@@ -231,7 +229,7 @@ export default function QuestionsPage() {
       setModalOpen(false)
       setEditingQuestion(null)
       form.resetFields()
-      fetchQuestions()
+      void fetchQuestions()
     } catch {
       message.error('保存失败，请检查输入后重试')
     }
@@ -241,7 +239,7 @@ export default function QuestionsPage() {
     Modal.confirm({
       title: '删除题目',
       icon: <ExclamationCircleOutlined />,
-      content: `确认停用题目「${question.content.slice(0, 24)}${question.content.length > 24 ? '...' : ''}」吗？`,
+      content: `确认停用题目“${question.content.slice(0, 24)}${question.content.length > 24 ? '...' : ''}”吗？`,
       okText: '确认删除',
       okButtonProps: { danger: true },
       cancelText: '取消',
@@ -249,7 +247,7 @@ export default function QuestionsPage() {
         try {
           await deleteQuestion(question.id)
           message.success('题目已停用')
-          fetchQuestions()
+          void fetchQuestions()
         } catch {
           message.error('删除失败，请稍后重试')
         }
@@ -309,7 +307,7 @@ export default function QuestionsPage() {
       align: 'center',
       render: (value: number) => (
         <Tag color={value >= 0.7 ? 'red' : value >= 0.4 ? 'orange' : 'green'} style={{ borderRadius: 10 }}>
-          {value >= 0.7 ? '难' : value >= 0.4 ? '中' : '易'}
+          {value >= 0.7 ? '高' : value >= 0.4 ? '中' : '低'}
         </Tag>
       ),
     },
@@ -344,17 +342,19 @@ export default function QuestionsPage() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
-          题库管理
-        </Title>
-        <Text type="secondary">
-          {canManageQuestions ? '管理员可增删改查，医生仅查看' : '当前角色仅查看题库'}
-        </Text>
+    <div className="mg-page">
+      <div className="mg-page-header">
+        <div>
+          <Title level={4} className="mg-page-title">
+            题库管理
+          </Title>
+          <Text className="mg-page-subtitle">
+            {canManageQuestions ? '管理员可新增、编辑、停用题目，医生仅可查看。' : '当前角色仅可查看题库。'}
+          </Text>
+        </div>
       </div>
 
-      <Card style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '20px 24px' }}>
+      <Card className="mg-panel-card" bodyStyle={{ padding: '20px 24px' }}>
         <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={6}>
             <Select
@@ -380,9 +380,9 @@ export default function QuestionsPage() {
           <Col>
             <Space>
               <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
-                导出CSV
+                导出 CSV
               </Button>
-              <Button icon={<ReloadOutlined />} onClick={fetchQuestions}>
+              <Button icon={<ReloadOutlined />} onClick={() => void fetchQuestions()}>
                 刷新
               </Button>
               {canManageQuestions && (
@@ -409,7 +409,7 @@ export default function QuestionsPage() {
           title={editingQuestion ? '编辑题目' : '新增题目'}
           okText={editingQuestion ? '保存' : '创建'}
           cancelText="取消"
-          onOk={handleSubmit}
+          onOk={() => void handleSubmit()}
           onCancel={() => {
             setModalOpen(false)
             setEditingQuestion(null)
@@ -431,11 +431,7 @@ export default function QuestionsPage() {
               </Col>
             </Row>
 
-            <Form.Item
-              name="content"
-              label="题目内容"
-              rules={[{ required: true, message: '请输入题目内容' }]}
-            >
+            <Form.Item name="content" label="题目内容" rules={[{ required: true, message: '请输入题目内容' }]}>
               <TextArea rows={3} placeholder="请输入题目文本" />
             </Form.Item>
 
@@ -461,7 +457,7 @@ export default function QuestionsPage() {
                     type="dashed"
                     size="small"
                     style={{ marginTop: 8 }}
-                    onClick={() => setOptionCount((n) => Math.min(n + 1, 8))}
+                    onClick={() => setOptionCount((count) => Math.min(count + 1, 8))}
                   >
                     + 添加选项
                   </Button>

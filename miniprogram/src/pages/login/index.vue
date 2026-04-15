@@ -1,81 +1,81 @@
-<template>
+﻿<template>
   <view class="login-page">
-    <view class="header">
-      <view class="logo-circle">
-        <text class="logo-icon">🧠</text>
-      </view>
-      <text class="app-title">忆守心安</text>
-      <text class="app-subtitle">社区认知健康评估系统</text>
+    <view class="hero-panel">
+      <view class="logo-badge">MG</view>
+      <text class="hero-title">忆守心安</text>
+      <text class="hero-subtitle">社区老年认知障碍早筛与干预系统</text>
     </view>
 
-    <view class="form-card">
-      <text class="form-title">欢迎登录</text>
+    <view class="mg-card login-card">
+      <text class="card-title">欢迎登录</text>
 
-      <view class="input-group">
-        <text class="input-label">手机号</text>
-        <view class="input-wrapper">
-          <text class="input-icon">📱</text>
+      <view class="field-block">
+        <text class="field-label">手机号</text>
+        <view class="field-input-wrap">
+          <text class="field-prefix">📱</text>
           <input
             v-model="phone"
-            class="input-field"
+            class="field-input"
             type="number"
             placeholder="请输入手机号"
-            placeholder-class="input-placeholder"
+            placeholder-class="field-placeholder"
             maxlength="11"
             :disabled="loading"
           />
         </view>
       </view>
 
-      <view class="input-group">
-        <text class="input-label">登录密码</text>
-        <view class="input-wrapper">
-          <text class="input-icon">🔒</text>
+      <view class="field-block">
+        <text class="field-label">登录密码</text>
+        <view class="field-input-wrap">
+          <text class="field-prefix">🔒</text>
           <input
             v-model="password"
-            class="input-field"
-            :type="showPassword ? 'text' : 'password'"
-            placeholder="请输入密码"
-            placeholder-class="input-placeholder"
+            class="field-input"
+            type="text"
+            :password="!showPassword"
+            placeholder="请输入登录密码"
+            placeholder-class="field-placeholder"
             :disabled="loading"
           />
-          <text class="eye-icon" @tap="togglePassword">{{ showPassword ? '🙈' : '👁️' }}</text>
+          <text class="toggle-text" @tap="togglePassword">{{ showPassword ? '隐藏' : '显示' }}</text>
         </view>
       </view>
 
-      <view v-if="errorMsg" class="error-box">
-        <text class="error-text">⚠️ {{ errorMsg }}</text>
+      <view v-if="errorMsg" class="error-tip">
+        <text class="error-tip-text">{{ errorMsg }}</text>
       </view>
 
       <button
-        class="btn-login"
+        class="submit-btn"
+        :class="{ 'submit-btn-disabled': loginDisabled }"
         :loading="loading"
-        :disabled="loading || !phone || !password"
+        :disabled="loginDisabled"
         @tap="handleLogin"
       >
-        <text v-if="!loading">登 录</text>
-        <text v-else>登录中...</text>
+        {{ loading ? '登录中...' : '立即登录' }}
       </button>
     </view>
 
-    <view class="footer">
-      <text class="footer-text">张家界学院 · 社区健康研究中心</text>
+    <view class="foot-note">
+      <text class="foot-note-text">张家界学院 · 社区健康研究中心</text>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '../../store/auth'
 import { api } from '../../utils/request'
 
 const auth = useAuthStore()
 
-const phone = ref('' )
-const password = ref('' )
+const phone = ref('')
+const password = ref('')
 const loading = ref(false)
-const errorMsg = ref('' )
+const errorMsg = ref('')
 const showPassword = ref(false)
+const loginDisabled = computed(() => loading.value || !phone.value || !password.value)
 
 function togglePassword() {
   showPassword.value = !showPassword.value
@@ -98,7 +98,7 @@ async function handleLogin() {
     return
   }
   if (!/^1[3-9]\d{9}$/.test(phone.value)) {
-    errorMsg.value = '请输入正确的手机号'
+    errorMsg.value = '请输入有效的手机号'
     return
   }
   if (!password.value) {
@@ -106,7 +106,7 @@ async function handleLogin() {
     return
   }
   if (password.value.length < 6) {
-    errorMsg.value = '密码长度不能少于6位'
+    errorMsg.value = '密码长度不能少于 6 位'
     return
   }
 
@@ -132,24 +132,24 @@ async function handleLogin() {
           })
         }
       } catch (bindErr) {
-        console.warn('WeChat bind by code failed:', bindErr)
+        console.warn('bind wechat by code failed', bindErr)
       }
 
       wx.showToast({
         title: '登录成功',
         icon: 'success',
-        duration: 1500,
+        duration: 1200,
       })
 
       setTimeout(() => {
         uni.switchTab({ url: '/pages/index/index' })
-      }, 1500)
+      }, 800)
     } else {
       errorMsg.value = '登录失败，请检查账号和密码'
     }
   } catch (err) {
-    console.error('Login error:', err)
-    errorMsg.value = err.message || '登录失败，请稍后重试'
+    console.error('login error', err)
+    errorMsg.value = err?.message || '登录失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -159,163 +159,163 @@ async function handleLogin() {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(160deg, #4A90D9 0%, #2c6fad 40%, #F5F5F5 40%);
+  padding: 70rpx 30rpx 54rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-panel {
+  border-radius: 30rpx;
+  padding: 34rpx 28rpx;
+  margin-bottom: 24rpx;
+  background:
+    radial-gradient(circle at 84% 10%, rgba(255, 255, 255, 0.28), transparent 40%),
+    linear-gradient(145deg, #0f766e, #0284c7);
+  box-shadow: var(--mg-shadow-strong);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 60rpx;
+  text-align: center;
 }
 
-.header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 80rpx;
-  padding-bottom: 60rpx;
-}
-
-.logo-circle {
-  width: 160rpx;
-  height: 160rpx;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 50%;
+.logo-badge {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 36rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2rpx solid rgba(255, 255, 255, 0.42);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24rpx;
-  border: 4rpx solid rgba(255, 255, 255, 0.5);
-}
-
-.logo-icon {
-  font-size: 80rpx;
-  line-height: 1;
-}
-
-.app-title {
-  font-size: 56rpx;
-  font-weight: bold;
-  color: #ffffff;
-  letter-spacing: 4rpx;
-  margin-bottom: 12rpx;
-}
-
-.app-subtitle {
-  font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 54rpx;
+  font-weight: 800;
   letter-spacing: 2rpx;
+  margin-bottom: 20rpx;
 }
 
-.form-card {
-  background: #ffffff;
-  border-radius: 24rpx;
-  padding: 50rpx 40rpx 40rpx;
-  margin: 0 30rpx;
-  width: calc(100% - 60rpx);
-  box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.12);
-  box-sizing: border-box;
+.hero-title {
+  color: #ffffff;
+  font-size: 58rpx;
+  font-weight: 800;
+  margin-bottom: 8rpx;
 }
 
-.form-title {
-  font-size: 44rpx;
-  font-weight: bold;
-  color: #333333;
+.hero-subtitle {
+  color: rgba(237, 252, 255, 0.92);
+  font-size: 29rpx;
+}
+
+.login-card {
+  padding: 34rpx 30rpx;
+}
+
+.card-title {
   display: block;
-  margin-bottom: 40rpx;
-  text-align: center;
+  font-size: 42rpx;
+  font-weight: 800;
+  color: #143445;
+  margin-bottom: 20rpx;
 }
 
-.input-group {
-  margin-bottom: 32rpx;
+.field-block {
+  margin-bottom: 22rpx;
 }
 
-.input-label {
+.field-label {
+  display: block;
   font-size: 30rpx;
-  color: #666666;
-  display: block;
-  margin-bottom: 12rpx;
-  font-weight: 500;
+  color: #4f6777;
+  font-weight: 600;
+  margin-bottom: 8rpx;
 }
 
-.input-wrapper {
+.field-input-wrap {
+  height: 98rpx;
+  border-radius: 18rpx;
+  border: 2rpx solid rgba(17, 34, 49, 0.12);
+  background: #f7fbfd;
   display: flex;
   align-items: center;
-  background: #F8F9FA;
-  border-radius: 16rpx;
-  border: 2rpx solid #E0E0E0;
   padding: 0 20rpx;
-  height: 100rpx;
-  transition: border-color 0.2s;
 }
 
-.input-wrapper:focus-within {
-  border-color: #4A90D9;
-  background: #F0F6FF;
+.field-prefix {
+  font-size: 34rpx;
+  margin-right: 10rpx;
 }
 
-.input-icon {
-  font-size: 36rpx;
-  margin-right: 16rpx;
-}
-
-.input-field {
+.field-input {
   flex: 1;
-  font-size: 36rpx;
-  color: #333333;
-  background: transparent;
+  height: 100%;
   border: none;
-  height: 100rpx;
+  background: transparent;
+  color: #153648;
+  font-size: 34rpx;
 }
 
-.input-placeholder {
-  color: #AAAAAA;
-  font-size: 32rpx;
+.field-placeholder {
+  color: #96acbb;
 }
 
-.eye-icon {
-  font-size: 36rpx;
-  padding: 10rpx;
+.toggle-text {
+  font-size: 28rpx;
+  color: var(--mg-brand);
+  font-weight: 700;
 }
 
-.error-box {
-  background: #FFF2F0;
-  border: 2rpx solid #FFCCC7;
-  border-radius: 12rpx;
-  padding: 20rpx 24rpx;
-  margin-bottom: 24rpx;
+.error-tip {
+  border-radius: 14rpx;
+  background: rgba(220, 38, 38, 0.08);
+  border: 2rpx solid rgba(220, 38, 38, 0.18);
+  padding: 14rpx 16rpx;
+  margin-bottom: 16rpx;
 }
 
-.error-text {
-  font-size: 30rpx;
-  color: #F5222D;
-  display: block;
+.error-tip-text {
+  color: var(--mg-danger);
+  font-size: 28rpx;
 }
 
-.btn-login {
+.submit-btn {
   width: 100%;
-  height: 100rpx;
-  background: linear-gradient(135deg, #4A90D9, #2c6fad);
+  margin-top: 10rpx;
+  height: 116rpx;
+  line-height: 116rpx;
+  border-radius: 58rpx;
+  border: none;
+  background: linear-gradient(135deg, #0f766e, #0284c7);
   color: #ffffff;
   font-size: 40rpx;
-  font-weight: bold;
-  border-radius: 50rpx;
-  border: none;
-  margin-top: 16rpx;
-  letter-spacing: 6rpx;
-  box-shadow: 0 8rpx 24rpx rgba(74, 144, 217, 0.4);
+  font-weight: 800;
+  letter-spacing: 2rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 14rpx 24rpx rgba(15, 118, 110, 0.26);
 }
 
-.btn-login[disabled] {
-  background: #B0C4DE;
+.submit-btn::after {
+  border: none;
+}
+
+.submit-btn.submit-btn-disabled {
+  background: linear-gradient(135deg, #c7d3dc, #b5c4cf) !important;
+  color: #f3f7fa !important;
+  opacity: 1;
   box-shadow: none;
 }
 
-.footer {
-  margin-top: 40rpx;
+.foot-note {
+  margin-top: auto;
   text-align: center;
+  padding-top: 30rpx;
 }
 
-.footer-text {
-  font-size: 28rpx;
-  color: #999999;
+.foot-note-text {
+  color: #7c94a4;
+  font-size: 29rpx;
 }
 </style>
+

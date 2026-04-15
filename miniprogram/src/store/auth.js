@@ -1,10 +1,10 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     token: null,
-    isLoggedIn: false
+    isLoggedIn: false,
   }),
 
   getters: {
@@ -23,7 +23,8 @@ export const useAuthStore = defineStore('auth', {
         if (showToast) {
           wx.showModal({
             title: '账号类型不支持',
-            content: '微信小程序老人端仅支持“老人账号”登录，请使用 Web 管理端登录管理员或医生账号。',
+            content:
+              '微信小程序老人端仅支持“老人账号”登录，请使用 Web 管理端登录管理员或医生账号。',
             showCancel: false,
             confirmText: '我知道了',
           })
@@ -34,13 +35,11 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
-    /**
-     * Initialize auth state from local storage on app launch
-     */
     init() {
       try {
         const token = wx.getStorageSync('token')
         const userStr = wx.getStorageSync('user')
+
         if (token && userStr) {
           this.token = token
           this.user = JSON.parse(userStr)
@@ -48,24 +47,19 @@ export const useAuthStore = defineStore('auth', {
 
           if (!this.enforceElderRole()) return
 
-          // Navigate to home if we have valid auth
           const pages = getCurrentPages()
           if (pages.length === 0 || pages[pages.length - 1].route === 'pages/login/index') {
             uni.switchTab({ url: '/pages/index/index' })
           }
         } else {
-          // Not logged in, redirect to login
           uni.reLaunch({ url: '/pages/login/index' })
         }
-      } catch (e) {
-        console.error('Auth init error:', e)
+      } catch (error) {
+        console.error('auth init error', error)
         uni.reLaunch({ url: '/pages/login/index' })
       }
     },
 
-    /**
-     * Set auth credentials after successful login
-     */
     setAuth(user, token) {
       this.user = user
       this.token = token
@@ -73,27 +67,21 @@ export const useAuthStore = defineStore('auth', {
       try {
         wx.setStorageSync('token', token)
         wx.setStorageSync('user', JSON.stringify(user))
-      } catch (e) {
-        console.error('Failed to save auth to storage:', e)
+      } catch (error) {
+        console.error('save auth storage failed', error)
       }
       return this.enforceElderRole(true)
     },
 
-    /**
-     * Update user profile data
-     */
     updateUser(userData) {
       this.user = { ...this.user, ...userData }
       try {
         wx.setStorageSync('user', JSON.stringify(this.user))
-      } catch (e) {
-        console.error('Failed to update user in storage:', e)
+      } catch (error) {
+        console.error('update user storage failed', error)
       }
     },
 
-    /**
-     * Logout and clear all stored credentials
-     */
     logout() {
       this.user = null
       this.token = null
@@ -101,10 +89,10 @@ export const useAuthStore = defineStore('auth', {
       try {
         wx.removeStorageSync('token')
         wx.removeStorageSync('user')
-      } catch (e) {
-        console.error('Failed to clear storage on logout:', e)
+      } catch (error) {
+        console.error('clear auth storage failed', error)
       }
       uni.reLaunch({ url: '/pages/login/index' })
-    }
-  }
+    },
+  },
 })

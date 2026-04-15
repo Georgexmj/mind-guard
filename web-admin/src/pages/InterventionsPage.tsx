@@ -969,15 +969,17 @@ export default function InterventionsPage() {
   )
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+    <div className="mg-page">
+      <div className="mg-page-header">
+        <div>
+          <Title level={4} className="mg-page-title">
           干预管理
         </Title>
-        <Text type="secondary">支持 Top-5 一键生成计划、依从性预警工单闭环与微信提醒派发。</Text>
+          <Text className="mg-page-subtitle">支持 Top-5 一键生成计划、依从性预警工单闭环与微信提醒派发。</Text>
+        </div>
       </div>
 
-      <Card style={{ borderRadius: 14, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '8px 20px 20px' }}>
+      <Card className="mg-panel-card" style={{ borderRadius: 14, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '8px 20px 20px' }}>
         <Tabs
           activeKey={currentSection}
           onChange={handleSectionChange}

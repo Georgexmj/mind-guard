@@ -4,7 +4,7 @@
       "path": "pages/login/index",
       "style": {
         "navigationBarTitleText": "登录",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -12,7 +12,7 @@
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "忆守心安",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -20,7 +20,7 @@
       "path": "pages/assessment/start/index",
       "style": {
         "navigationBarTitleText": "评估说明",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -28,7 +28,7 @@
       "path": "pages/assessment/question/index",
       "style": {
         "navigationBarTitleText": "认知评估",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -36,7 +36,7 @@
       "path": "pages/assessment/voice-task/index",
       "style": {
         "navigationBarTitleText": "语音任务",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -44,7 +44,7 @@
       "path": "pages/assessment/clock-draw/index",
       "style": {
         "navigationBarTitleText": "时钟绘制",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -52,7 +52,7 @@
       "path": "pages/result/index",
       "style": {
         "navigationBarTitleText": "评估结果",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -60,15 +60,7 @@
       "path": "pages/intervention/top5/index",
       "style": {
         "navigationBarTitleText": "干预推荐 Top-5",
-        "navigationBarBackgroundColor": "#4A90D9",
-        "navigationBarTextStyle": "white"
-      }
-    },
-    {
-      "path": "pages/intervention/checkin/index",
-      "style": {
-        "navigationBarTitleText": "每日干预打卡",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     },
@@ -76,14 +68,14 @@
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的",
-        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarBackgroundColor": "#0f766e",
         "navigationBarTextStyle": "white"
       }
     }
   ],
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#4A90D9",
+    "selectedColor": "#0f766e",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
@@ -104,9 +96,10 @@
   "globalStyle": {
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "忆守心安",
-    "navigationBarBackgroundColor": "#4A90D9",
+    "navigationBarBackgroundColor": "#0f766e",
     "backgroundColor": "#F5F5F5",
     "backgroundTextStyle": "light",
     "fontSize": "36rpx"
   }
 }
+

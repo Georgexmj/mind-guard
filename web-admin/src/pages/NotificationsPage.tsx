@@ -67,11 +67,11 @@ export default function NotificationsPage() {
   }, [filter])
 
   useEffect(() => {
-    fetchData()
+    void fetchData()
   }, [fetchData])
 
   const highRiskCount = useMemo(
-    () => items.filter((i) => i.notification_type === 'high_risk_alert').length,
+    () => items.filter((item) => item.notification_type === 'high_risk_alert').length,
     [items],
   )
 
@@ -79,30 +79,33 @@ export default function NotificationsPage() {
     if (item.is_read) return
     await markNotificationRead(item.id)
     message.success('已标记为已读')
-    fetchData()
+    void fetchData()
   }
 
   const handleMarkAllRead = async () => {
     const count = await markAllNotificationsRead()
     message.success(`已标记 ${count} 条通知为已读`)
-    fetchData()
+    void fetchData()
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>通知中心</Title>
-        <Text type="secondary">查看评估完成和高危预警通知，支持一键已读管理</Text>
+    <div className="mg-page">
+      <div className="mg-page-header">
+        <div>
+          <Title level={4} className="mg-page-title">
+            通知中心
+          </Title>
+          <Text className="mg-page-subtitle">查看评估完成与高危预警通知，支持一键已读处理</Text>
+        </div>
       </div>
 
-      <Card
-        style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: '14px 18px' }}
-      >
+      <Card className="mg-panel-card" bodyStyle={{ padding: '14px 18px' }}>
         <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
           <Space>
             <Badge count={unreadCount} overflowCount={99}>
-              <Tag color="blue" style={{ borderRadius: 12, padding: '2px 10px' }}>未读通知</Tag>
+              <Tag color="blue" style={{ borderRadius: 12, padding: '2px 10px' }}>
+                未读通知
+              </Tag>
             </Badge>
             <Tag color="red" style={{ borderRadius: 12, padding: '2px 10px' }}>
               高危预警 {highRiskCount}
@@ -111,7 +114,7 @@ export default function NotificationsPage() {
           <Space>
             <Segmented
               value={filter}
-              onChange={(v) => setFilter(v as FilterType)}
+              onChange={(value) => setFilter(value as FilterType)}
               options={[
                 { label: '全部', value: 'all' },
                 { label: '未读', value: 'unread' },
@@ -119,7 +122,9 @@ export default function NotificationsPage() {
                 { label: '评估完成', value: 'assessment_completed' },
               ]}
             />
-            <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => void fetchData()}>
+              刷新
+            </Button>
             <Button type="primary" icon={<CheckOutlined />} onClick={handleMarkAllRead}>
               全部已读
             </Button>
@@ -127,9 +132,7 @@ export default function NotificationsPage() {
         </Space>
       </Card>
 
-      <Card
-        style={{ marginTop: 16, borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
-      >
+      <Card className="mg-panel-card">
         <List
           loading={loading}
           dataSource={items}
@@ -142,7 +145,7 @@ export default function NotificationsPage() {
                   size="small"
                   disabled={item.is_read}
                   icon={<EyeOutlined />}
-                  onClick={() => handleMarkRead(item)}
+                  onClick={() => void handleMarkRead(item)}
                 >
                   {item.is_read ? '已读' : '标记已读'}
                 </Button>,
@@ -161,14 +164,14 @@ export default function NotificationsPage() {
               <List.Item.Meta
                 avatar={
                   item.notification_type === 'high_risk_alert' ? (
-                    <WarningOutlined style={{ color: '#ff4d4f', fontSize: 18 }} />
+                    <WarningOutlined style={{ color: '#dc2626', fontSize: 18 }} />
                   ) : (
-                    <BellOutlined style={{ color: '#1677ff', fontSize: 18 }} />
+                    <BellOutlined style={{ color: '#0f766e', fontSize: 18 }} />
                   )
                 }
                 title={(
                   <Space>
-                    <Text strong style={{ color: item.is_read ? '#999' : '#1a1a2e' }}>
+                    <Text strong style={{ color: item.is_read ? '#8ca0ae' : '#163143' }}>
                       {item.title}
                     </Text>
                     <Tag color={item.notification_type === 'high_risk_alert' ? 'red' : 'blue'}>

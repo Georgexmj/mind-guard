@@ -1,58 +1,50 @@
-<template>
+﻿<template>
   <view class="question-page">
-    <!-- Progress Header -->
-    <view class="progress-header">
-      <view class="progress-info">
-        <text class="progress-num">第 {{ currentIndex + 1 }} 题</text>
-        <text class="progress-total">共 {{ totalQuestions }} 题</text>
+    <view class="progress-card">
+      <view class="progress-row">
+        <text class="progress-title">第 {{ currentIndex + 1 }} 题</text>
+        <text class="progress-sub">共 {{ totalQuestions }} 题</text>
       </view>
-      <view class="progress-bar-wrap">
-        <view class="progress-bar">
-          <view class="progress-fill" :style="{ width: progressPercent + '%' }" />
+      <view class="progress-line-wrap">
+        <view class="progress-line">
+          <view class="progress-line-fill" :style="{ width: progressPercent + '%' }" />
         </view>
-        <text class="progress-pct">{{ progressPercent }}%</text>
+        <text class="progress-num">{{ progressPercent }}%</text>
       </view>
     </view>
 
-    <!-- Question Card -->
-    <view v-if="currentQuestion" class="question-card">
-      <!-- Domain Badge -->
-      <view class="domain-badge" :style="{ backgroundColor: domainColor }">
+    <view v-if="currentQuestion" class="mg-card question-card">
+      <view class="domain-tag" :style="{ backgroundColor: domainColor }">
         <text class="domain-icon">{{ domainIcon }}</text>
         <text class="domain-name">{{ domainName }}</text>
       </view>
 
-      <!-- Question Text -->
       <text class="question-text">{{ currentQuestion.content }}</text>
 
-      <!-- CHOICE TYPE -->
       <view v-if="isChoiceType" class="options-list">
         <view
           v-for="(option, idx) in currentQuestion.options"
           :key="idx"
-          class="option-btn"
+          class="option-item"
           :class="{
             selected: selectedOption === idx,
             correct: showFeedback && selectedOption === idx && !wrongAnswer,
-            wrong: showFeedback && selectedOption === idx && wrongAnswer
+            wrong: showFeedback && selectedOption === idx && wrongAnswer,
           }"
-          @tap="() => selectOption(idx, option)"
+          @tap="selectOption(idx, option)"
         >
-          <view class="option-label-circle">
-            <text class="option-label">{{ optionLabels[idx] }}</text>
-          </view>
-          <text class="option-text">{{ option }}</text>
-          <text v-if="showFeedback && selectedOption === idx" class="option-indicator">
-            {{ wrongAnswer ? '✗' : '✓' }}
+          <view class="option-index">{{ optionLabels[idx] }}</view>
+          <text class="option-content">{{ option }}</text>
+          <text v-if="showFeedback && selectedOption === idx" class="option-state">
+            {{ wrongAnswer ? '✕' : '✓' }}
           </text>
         </view>
       </view>
 
-      <!-- SCALE TYPE (slider 0-10) -->
       <view v-else-if="isScaleType" class="scale-area">
-        <view class="scale-display">
+        <view class="scale-score">
           <text class="scale-value">{{ scaleValue }}</text>
-          <text class="scale-unit">/ 10 分</text>
+          <text class="scale-total">/ 10 分</text>
         </view>
         <slider
           class="scale-slider"
@@ -60,60 +52,49 @@
           :max="10"
           :step="1"
           :value="scaleValue"
-          activeColor="#4A90D9"
-          backgroundColor="#E0E0E0"
-          block-size="44"
+          activeColor="#0f766e"
+          backgroundColor="#e2ebf2"
+          block-size="42"
           @change="onSliderChange"
         />
         <view class="scale-labels">
-          <text class="scale-label-left">完全不符合</text>
-          <text class="scale-label-right">完全符合</text>
+          <text class="scale-label">完全不符合</text>
+          <text class="scale-label">完全符合</text>
         </view>
 
-        <button class="btn-next" @tap="submitScaleAnswer">确认并继续</button>
+        <button class="next-btn" @tap="submitScaleAnswer">确认并继续</button>
       </view>
 
-      <!-- VOICE TYPE -->
       <view v-else-if="isVoiceType" class="task-area">
-        <view class="task-hint-box task-hint-voice">
-          <text class="task-hint-icon">🎤</text>
-          <text class="task-hint-text">请点击下方按钮，录制您的语音回答</text>
+        <view class="task-hint voice">
+          <text class="task-icon">🎙️</text>
+          <text class="task-text">请点击下方按钮完成语音任务。</text>
         </view>
-        <view v-if="voiceAnswered" class="answered-badge">
-          <text class="answered-icon">✓</text>
-          <text class="answered-text">语音已录制</text>
+        <view v-if="voiceAnswered" class="done-tag">
+          <text class="done-icon">✓</text>
+          <text class="done-text">语音已录制</text>
         </view>
-        <button class="btn-task btn-voice" @tap="goToVoiceTask">
-          {{ voiceAnswered ? '重新录音' : '点击录音' }}
+        <button class="task-btn voice" @tap="goToVoiceTask">
+          {{ voiceAnswered ? '重新录制语音' : '开始录音' }}
         </button>
-        <button
-          v-if="voiceAnswered"
-          class="btn-next"
-          @tap="submitVoiceAnswer"
-        >下一题</button>
+        <button v-if="voiceAnswered" class="next-btn" @tap="submitVoiceAnswer">下一题</button>
       </view>
 
-      <!-- DRAWING TYPE -->
       <view v-else-if="isDrawingType" class="task-area">
-        <view class="task-hint-box task-hint-draw">
-          <text class="task-hint-icon">✏️</text>
-          <text class="task-hint-text">请点击下方按钮，在画布上绘制时钟</text>
+        <view class="task-hint draw">
+          <text class="task-icon">🕘</text>
+          <text class="task-text">请点击下方按钮完成时钟绘制任务。</text>
         </view>
-        <view v-if="drawingAnswered" class="answered-badge">
-          <text class="answered-icon">✓</text>
-          <text class="answered-text">时钟已绘制</text>
+        <view v-if="drawingAnswered" class="done-tag">
+          <text class="done-icon">✓</text>
+          <text class="done-text">时钟已绘制</text>
         </view>
-        <button class="btn-task btn-draw" @tap="goToClockDraw">
-          {{ drawingAnswered ? '重新绘制' : '开始绘制时钟' }}
+        <button class="task-btn draw" @tap="goToClockDraw">
+          {{ drawingAnswered ? '重新绘制时钟' : '开始绘制' }}
         </button>
-        <button
-          v-if="drawingAnswered"
-          class="btn-next"
-          @tap="submitDrawingAnswer"
-        >下一题</button>
+        <button v-if="drawingAnswered" class="next-btn" @tap="submitDrawingAnswer">下一题</button>
       </view>
 
-      <!-- TEXT INPUT TYPE -->
       <view v-else-if="isTextType" class="text-area">
         <textarea
           v-model="textAnswer"
@@ -123,29 +104,22 @@
           :maxlength="500"
           auto-height
         />
-        <button
-          class="btn-next"
-          :disabled="!textAnswer.trim()"
-          @tap="submitTextAnswer"
-        >确认并继续</button>
+        <button class="next-btn" :disabled="!textAnswer.trim()" @tap="submitTextAnswer">确认并继续</button>
       </view>
 
-      <!-- UNKNOWN TYPE FALLBACK -->
       <view v-else class="task-area">
-        <text class="unknown-type">题目类型：{{ currentQuestion.q_type }}</text>
-        <button class="btn-next" @tap="advanceQuestion">跳过</button>
+        <text class="unknown-type">暂不支持题型：{{ currentQuestion.q_type }}</text>
+        <button class="next-btn" @tap="advanceQuestion">跳过此题</button>
       </view>
     </view>
 
-    <!-- Loading State -->
     <view v-else class="loading-state">
       <text class="loading-icon">⏳</text>
       <text class="loading-text">题目加载中...</text>
     </view>
 
-    <!-- Exit Confirm Button -->
     <view class="exit-row">
-      <text class="exit-text" @tap="confirmExit">退出评估</text>
+      <text class="exit-text" @tap="confirmExit">暂停并退出评估</text>
     </view>
   </view>
 </template>
@@ -158,7 +132,6 @@ import { api } from '../../../utils/request'
 
 const assessmentStore = useAssessmentStore()
 
-// State
 const selectedOption = ref(null)
 const showFeedback = ref(false)
 const wrongAnswer = ref(false)
@@ -173,7 +146,6 @@ const confirmedLeaving = ref(false)
 
 const optionLabels = ['A', 'B', 'C', 'D']
 
-// Computed from store
 const currentQuestion = computed(() => assessmentStore.currentQuestion)
 const currentIndex = computed(() => assessmentStore.currentQuestionIndex)
 const totalQuestions = computed(() => assessmentStore.totalQuestions)
@@ -184,7 +156,6 @@ const progressPercent = computed(() => {
   return Math.round(((currentIndex.value + 1) / totalQuestions.value) * 100)
 })
 
-// Question type helpers
 const qType = computed(() => {
   const q = currentQuestion.value
   if (!q) return ''
@@ -197,15 +168,14 @@ const isVoiceType = computed(() => qType.value === 'voice')
 const isDrawingType = computed(() => qType.value === 'drawing')
 const isTextType = computed(() => qType.value === 'text')
 
-// Domain display
 const domainMap = {
-  memory: { name: '记忆力', icon: '💭', color: '#722ED1' },
-  orientation: { name: '定向力', icon: '🧭', color: '#1890FF' },
-  attention: { name: '注意力', icon: '🎯', color: '#FA8C16' },
-  language: { name: '语言能力', icon: '💬', color: '#52C41A' },
-  visuospatial: { name: '视空间', icon: '🗺️', color: '#13C2C2' },
-  executive: { name: '执行功能', icon: '⚙️', color: '#F5222D' },
-  recall: { name: '延迟回忆', icon: '🔄', color: '#EB2F96' }
+  memory: { name: '记忆', icon: '🧠', color: '#7c3aed' },
+  orientation: { name: '定向', icon: '🧭', color: '#0284c7' },
+  attention: { name: '注意', icon: '🎯', color: '#d97706' },
+  language: { name: '语言', icon: '🗣️', color: '#16a34a' },
+  visuospatial: { name: '视空间', icon: '🧩', color: '#0ea5e9' },
+  executive: { name: '执行功能', icon: '📋', color: '#dc2626' },
+  recall: { name: '延迟回忆', icon: '🔁', color: '#ec4899' },
 }
 
 const domainKey = computed(() => {
@@ -213,12 +183,11 @@ const domainKey = computed(() => {
   return (q?.domain || 'memory').toLowerCase()
 })
 
-const domainInfo = computed(() => domainMap[domainKey.value] || { name: '综合能力', icon: '🧠', color: '#4A90D9' })
+const domainInfo = computed(() => domainMap[domainKey.value] || { name: '综合能力', icon: '🧠', color: '#0f766e' })
 const domainName = computed(() => domainInfo.value.name)
 const domainIcon = computed(() => domainInfo.value.icon)
 const domainColor = computed(() => domainInfo.value.color)
 
-// Methods
 function resetAnswerState() {
   selectedOption.value = null
   showFeedback.value = false
@@ -237,7 +206,6 @@ async function submitAnswerToBackend(answerData) {
   try {
     const sessionId = assessmentStore.currentSessionId
     const reactionTime = assessmentStore.getReactionTime()
-    // Map to backend AnswerSubmit schema: {question_id, answer_text, answer_data, reaction_time_ms}
     const payload = {
       question_id: currentQuestion.value?.id,
       answer_text: answerData.answer_value != null ? String(answerData.answer_value) : null,
@@ -248,7 +216,6 @@ async function submitAnswerToBackend(answerData) {
     assessmentStore.submitAnswer(payload)
   } catch (err) {
     console.error('Submit answer error:', err)
-    // Non-blocking: record locally even if server fails
     assessmentStore.submitAnswer({ question_id: currentQuestion.value?.id })
     wx.showToast({ title: '答案已暂存', icon: 'none', duration: 1500 })
   } finally {
@@ -257,13 +224,12 @@ async function submitAnswerToBackend(answerData) {
 }
 
 async function selectOption(idx, option) {
-  if (showFeedback.value || submitting.value) return // prevent double tap
+  if (showFeedback.value || submitting.value) return
   selectedOption.value = idx
 
   const answerValue = typeof option === 'string' ? option : String(option)
   const correctAnswer = currentQuestion.value?.correct_answer
 
-  // Show brief feedback if answer key exists
   if (correctAnswer != null) {
     wrongAnswer.value = answerValue !== correctAnswer
     showFeedback.value = true
@@ -275,7 +241,7 @@ async function selectOption(idx, option) {
     answer_value: answerValue,
   })
 
-  const delay = showFeedback.value ? 800 : 300
+  const delay = showFeedback.value ? 800 : 280
   setTimeout(() => {
     showFeedback.value = false
     if (isLastQuestion.value) {
@@ -293,7 +259,7 @@ function onSliderChange(e) {
 async function submitScaleAnswer() {
   await submitAnswerToBackend({
     answer_type: 'scale',
-    answer_value: scaleValue.value
+    answer_value: scaleValue.value,
   })
   advanceOrComplete()
 }
@@ -302,7 +268,7 @@ async function submitTextAnswer() {
   if (!textAnswer.value.trim()) return
   await submitAnswerToBackend({
     answer_type: 'text',
-    answer_value: textAnswer.value.trim()
+    answer_value: textAnswer.value.trim(),
   })
   advanceOrComplete()
 }
@@ -328,14 +294,14 @@ async function submitDrawingAnswer() {
 function goToVoiceTask() {
   const q = currentQuestion.value
   uni.navigateTo({
-    url: `/pages/assessment/voice-task/index?questionIndex=${currentIndex.value}&questionId=${q?.id || ''}&taskText=${encodeURIComponent(q?.content || '')}`
+    url: `/pages/assessment/voice-task/index?questionIndex=${currentIndex.value}&questionId=${q?.id || ''}&taskText=${encodeURIComponent(q?.content || '')}`,
   })
 }
 
 function goToClockDraw() {
   const q = currentQuestion.value
   uni.navigateTo({
-    url: `/pages/assessment/clock-draw/index?questionIndex=${currentIndex.value}&questionId=${q?.id || ''}`
+    url: `/pages/assessment/clock-draw/index?questionIndex=${currentIndex.value}&questionId=${q?.id || ''}`,
   })
 }
 
@@ -370,18 +336,18 @@ async function handleComplete() {
 
     wx.hideLoading()
     uni.redirectTo({
-      url: `/pages/result/index?sessionId=${sessionId}${taskId ? '&taskId=' + taskId : ''}`
+      url: `/pages/result/index?sessionId=${sessionId}${taskId ? `&taskId=${taskId}` : ''}`,
     })
   } catch (err) {
     wx.hideLoading()
     console.error('Complete session error:', err)
     wx.showModal({
       title: '提交遇到问题',
-      content: err.message || '提交失败，请重试',
+      content: err.message || '提交失败，请重试。',
       showCancel: false,
       confirmText: '重试',
-      confirmColor: '#4A90D9',
-      success: () => handleComplete()
+      confirmColor: '#0f766e',
+      success: () => handleComplete(),
     })
   }
 }
@@ -401,10 +367,10 @@ async function pauseCurrentSession() {
 function confirmExit() {
   wx.showModal({
     title: '暂停评估',
-    content: '退出后系统会自动暂停评估，30分钟内可继续作答。是否现在退出？',
+    content: '退出后系统会自动暂停评估，30 分钟内可继续答题。是否确认退出？',
     confirmText: '暂停并退出',
     cancelText: '继续评估',
-    confirmColor: '#4A90D9',
+    confirmColor: '#0f766e',
     success: async (res) => {
       if (res.confirm) {
         wx.showLoading({ title: '正在退出...', mask: true })
@@ -413,19 +379,19 @@ function confirmExit() {
         if (!paused) {
           wx.showModal({
             title: '暂停失败',
-            content: '当前会话暂停失败，请检查网络后重试',
+            content: '当前会话暂停失败，请检查网络后重试。',
             showCancel: false,
             confirmText: '知道了',
-            confirmColor: '#4A90D9'
+            confirmColor: '#0f766e',
           })
           return
         }
-        wx.showToast({ title: '已暂停，可30分钟内续做', icon: 'none', duration: 1800 })
+        wx.showToast({ title: '已暂停，可在 30 分钟内继续', icon: 'none', duration: 1800 })
         confirmedLeaving.value = true
         assessmentStore.reset()
         uni.switchTab({ url: '/pages/index/index' })
       }
-    }
+    },
   })
 }
 
@@ -435,7 +401,6 @@ onBackPress(() => {
   return true
 })
 
-// Handle returning from voice/draw sub-pages
 onShow(() => {
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
@@ -486,193 +451,175 @@ onUnmounted(() => {
 <style scoped>
 .question-page {
   min-height: 100vh;
-  background: #F0F4F8;
-  padding-bottom: 40rpx;
+  padding-bottom: 34rpx;
 }
 
-/* Progress Header */
-.progress-header {
-  background: #ffffff;
-  padding: 24rpx 30rpx 20rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+.progress-card {
+  margin: 16rpx 24rpx 0;
+  border-radius: 20rpx;
+  padding: 18rpx 18rpx 16rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(17, 34, 49, 0.07);
 }
 
-.progress-info {
+.progress-row {
   display: flex;
   align-items: baseline;
-  gap: 16rpx;
-  margin-bottom: 16rpx;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+
+.progress-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #0f766e;
+}
+
+.progress-sub {
+  font-size: 27rpx;
+  color: #7390a3;
+}
+
+.progress-line-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.progress-line {
+  flex: 1;
+  height: 14rpx;
+  border-radius: 999rpx;
+  overflow: hidden;
+  background: #dbe7f0;
+}
+
+.progress-line-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #0f766e, #0284c7);
+  transition: width 0.25s ease;
 }
 
 .progress-num {
-  font-size: 44rpx;
-  font-weight: bold;
-  color: #4A90D9;
-}
-
-.progress-total {
-  font-size: 30rpx;
-  color: #999999;
-}
-
-.progress-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 16rpx;
-  background: #E8E8E8;
-  border-radius: 8rpx;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4A90D9, #2c6fad);
-  border-radius: 8rpx;
-  transition: width 0.4s ease;
-}
-
-.progress-pct {
-  font-size: 28rpx;
-  color: #4A90D9;
-  font-weight: bold;
-  min-width: 60rpx;
+  min-width: 64rpx;
   text-align: right;
+  color: #0f766e;
+  font-size: 27rpx;
+  font-weight: 700;
 }
 
-/* Question Card */
 .question-card {
-  background: #ffffff;
-  border-radius: 20rpx;
-  margin: 20rpx 30rpx;
-  padding: 36rpx 30rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+  margin: 16rpx 24rpx 0;
+  padding: 24rpx;
 }
 
-.domain-badge {
+.domain-tag {
   display: inline-flex;
   align-items: center;
   gap: 8rpx;
-  padding: 10rpx 24rpx;
-  border-radius: 30rpx;
-  margin-bottom: 28rpx;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
 }
 
 .domain-icon {
-  font-size: 28rpx;
+  font-size: 29rpx;
 }
 
 .domain-name {
-  font-size: 28rpx;
   color: #ffffff;
-  font-weight: bold;
+  font-size: 29rpx;
+  font-weight: 700;
 }
 
 .question-text {
-  font-size: 44rpx;
-  font-weight: bold;
-  color: #222222;
-  line-height: 1.6;
   display: block;
-  margin-bottom: 36rpx;
+  margin-top: 16rpx;
+  margin-bottom: 20rpx;
+  font-size: 40rpx;
+  color: #132f40;
+  line-height: 1.7;
+  font-weight: 700;
 }
 
-/* Option Buttons */
 .options-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 12rpx;
 }
 
-.option-btn {
+.option-item {
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  padding: 24rpx 24rpx;
-  background: #F8F9FA;
-  border: 3rpx solid #E0E0E0;
+  gap: 12rpx;
   border-radius: 16rpx;
-  min-height: 100rpx;
-  transition: all 0.2s;
-  position: relative;
+  border: 2rpx solid #d9e5ee;
+  background: #f7fbfd;
+  padding: 16rpx;
 }
 
-.option-btn:active {
-  transform: scale(0.98);
-  opacity: 0.85;
+.option-item.selected {
+  border-color: #0f766e;
+  background: #eef9f8;
 }
 
-.option-btn.selected {
-  border-color: #4A90D9;
-  background: #EBF5FF;
+.option-item.correct {
+  border-color: #16a34a;
+  background: #f6ffed;
 }
 
-.option-btn.correct {
-  border-color: #52C41A;
-  background: #F6FFED;
+.option-item.wrong {
+  border-color: #dc2626;
+  background: #fff2f0;
 }
 
-.option-btn.wrong {
-  border-color: #F5222D;
-  background: #FFF2F0;
-}
-
-.option-label-circle {
-  width: 60rpx;
-  height: 60rpx;
-  background: #4A90D9;
+.option-index {
+  width: 52rpx;
+  height: 52rpx;
   border-radius: 50%;
+  background: #0f766e;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 27rpx;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
-.option-label {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #ffffff;
-}
-
-.option-text {
+.option-content {
   flex: 1;
-  font-size: 36rpx;
-  color: #333333;
+  font-size: 32rpx;
+  color: #1d3d50;
   line-height: 1.5;
 }
 
-.option-indicator {
-  font-size: 40rpx;
-  font-weight: bold;
+.option-state {
+  font-size: 36rpx;
+  font-weight: 800;
 }
 
-/* Scale */
 .scale-area {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 20rpx;
 }
 
-.scale-display {
+.scale-score {
   display: flex;
   align-items: baseline;
-  gap: 8rpx;
+  justify-content: center;
+  margin-bottom: 14rpx;
 }
 
 .scale-value {
-  font-size: 80rpx;
-  font-weight: bold;
-  color: #4A90D9;
+  font-size: 72rpx;
+  color: #0f766e;
+  font-weight: 800;
 }
 
-.scale-unit {
-  font-size: 32rpx;
-  color: #888888;
+.scale-total {
+  font-size: 30rpx;
+  color: #6e8797;
 }
 
 .scale-slider {
@@ -680,175 +627,161 @@ onUnmounted(() => {
 }
 
 .scale-labels {
-  width: 100%;
   display: flex;
   justify-content: space-between;
+  margin-bottom: 14rpx;
 }
 
-.scale-label-left, .scale-label-right {
-  font-size: 28rpx;
-  color: #999999;
+.scale-label {
+  color: #7894a5;
+  font-size: 29rpx;
 }
 
-/* Task Area (voice/draw) */
 .task-area {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 24rpx;
+  gap: 14rpx;
 }
 
-.task-hint-box {
-  width: 100%;
-  padding: 30rpx;
+.task-hint {
   border-radius: 16rpx;
+  padding: 22rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12rpx;
   text-align: center;
 }
 
-.task-hint-voice {
-  background: #FFF0F6;
-  border: 2rpx solid #FFADD2;
+.task-hint.voice {
+  background: #fff0f6;
+  border: 2rpx solid #ffadd2;
 }
 
-.task-hint-draw {
-  background: #F0F5FF;
-  border: 2rpx solid #ADC6FF;
+.task-hint.draw {
+  background: #eff6ff;
+  border: 2rpx solid #bfdbfe;
 }
 
-.task-hint-icon {
-  font-size: 60rpx;
+.task-icon {
+  font-size: 54rpx;
 }
 
-.task-hint-text {
-  font-size: 32rpx;
-  color: #555555;
-  line-height: 1.5;
+.task-text {
+  margin-top: 8rpx;
+  color: #4e687a;
+  font-size: 30rpx;
 }
 
-.answered-badge {
-  display: flex;
+.done-tag {
+  padding: 12rpx 16rpx;
+  border-radius: 14rpx;
+  background: #f6ffed;
+  border: 2rpx solid #b7eb8f;
+  display: inline-flex;
   align-items: center;
-  gap: 12rpx;
-  background: #F6FFED;
-  border: 2rpx solid #B7EB8F;
-  border-radius: 12rpx;
-  padding: 16rpx 30rpx;
+  gap: 6rpx;
 }
 
-.answered-icon {
-  font-size: 36rpx;
-  color: #52C41A;
-  font-weight: bold;
+.done-icon {
+  color: #16a34a;
+  font-weight: 700;
 }
 
-.answered-text {
-  font-size: 32rpx;
-  color: #52C41A;
-  font-weight: bold;
+.done-text {
+  color: #237804;
+  font-size: 28rpx;
+  font-weight: 700;
 }
 
-.btn-task {
+.task-btn {
   width: 100%;
-  height: 100rpx;
-  font-size: 38rpx;
-  font-weight: bold;
-  border-radius: 50rpx;
+  min-height: 92rpx;
+  border-radius: 999rpx;
   border: none;
-  letter-spacing: 2rpx;
-}
-
-.btn-voice {
-  background: linear-gradient(135deg, #EB2F96, #C41D7F);
   color: #ffffff;
-  box-shadow: 0 6rpx 20rpx rgba(235, 47, 150, 0.35);
+  font-size: 34rpx;
+  font-weight: 700;
 }
 
-.btn-draw {
-  background: linear-gradient(135deg, #1890FF, #096DD9);
-  color: #ffffff;
-  box-shadow: 0 6rpx 20rpx rgba(24, 144, 255, 0.35);
+.task-btn.voice {
+  background: linear-gradient(135deg, #db2777, #be185d);
 }
 
-/* Text Input */
+.task-btn.draw {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+}
+
 .text-area {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 14rpx;
 }
 
 .text-input {
   width: 100%;
-  min-height: 160rpx;
-  background: #F8F9FA;
-  border: 2rpx solid #E0E0E0;
+  min-height: 168rpx;
   border-radius: 16rpx;
-  padding: 20rpx;
-  font-size: 36rpx;
-  color: #333333;
-  box-sizing: border-box;
+  border: 2rpx solid #d9e5ee;
+  background: #f8fbfd;
+  padding: 16rpx;
+  font-size: 30rpx;
+  color: #1d3d50;
 }
 
 .text-placeholder {
-  color: #AAAAAA;
-  font-size: 32rpx;
-}
-
-/* Next Button */
-.btn-next {
-  width: 100%;
-  height: 96rpx;
-  background: linear-gradient(135deg, #4A90D9, #2c6fad);
-  color: #ffffff;
-  font-size: 38rpx;
-  font-weight: bold;
-  border-radius: 48rpx;
-  border: none;
-  box-shadow: 0 6rpx 20rpx rgba(74, 144, 217, 0.35);
-  letter-spacing: 2rpx;
-}
-
-.btn-next[disabled] {
-  background: #B0C4DE;
-  box-shadow: none;
-}
-
-/* Unknown type */
-.unknown-type {
+  color: #93a7b6;
   font-size: 30rpx;
-  color: #999999;
 }
 
-/* Loading State */
+.next-btn {
+  width: 100%;
+  min-height: 92rpx;
+  border-radius: 999rpx;
+  border: none;
+  background: linear-gradient(135deg, #0f766e, #0284c7);
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.next-btn[disabled] {
+  background: #afc5d7;
+}
+
+.unknown-type {
+  color: #7b93a3;
+  font-size: 29rpx;
+}
+
 .loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 100rpx 30rpx;
+  margin: 20rpx 24rpx 0;
+  border-radius: 20rpx;
+  padding: 50rpx 20rpx;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .loading-icon {
-  font-size: 80rpx;
-  margin-bottom: 20rpx;
+  display: block;
+  font-size: 68rpx;
 }
 
 .loading-text {
-  font-size: 36rpx;
-  color: #888888;
+  display: block;
+  margin-top: 8rpx;
+  font-size: 31rpx;
+  color: #6f8798;
 }
 
-/* Exit Row */
 .exit-row {
   text-align: center;
   padding: 20rpx;
 }
 
 .exit-text {
-  font-size: 28rpx;
-  color: #CCCCCC;
+  color: #97aab8;
+  font-size: 27rpx;
   text-decoration: underline;
 }
 </style>
+

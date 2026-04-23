@@ -99,6 +99,7 @@ class ResultOut(BaseModel):
     mmse_subscores: Optional[Dict[str, float]] = None
     moca_subscores: Optional[Dict[str, float]] = None
     clinical_report: Optional[Dict[str, Any]] = None
+    recommendation_items: Optional[List[Dict[str, Any]]] = None
     domain_scores: Dict[str, float]
     model_confidence: Optional[float] = None
     modality_quality: Optional[Dict[str, float]] = None

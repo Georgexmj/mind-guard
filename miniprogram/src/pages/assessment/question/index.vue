@@ -293,8 +293,9 @@ async function submitDrawingAnswer() {
 
 function goToVoiceTask() {
   const q = currentQuestion.value
+  const sessionId = assessmentStore.currentSessionId || ''
   uni.navigateTo({
-    url: `/pages/assessment/voice-task/index?questionIndex=${currentIndex.value}&questionId=${q?.id || ''}&taskText=${encodeURIComponent(q?.content || '')}`,
+    url: `/pages/assessment/voice-task/index?questionIndex=${currentIndex.value}&questionId=${q?.id || ''}&sessionId=${sessionId}&taskText=${encodeURIComponent(q?.content || '')}`,
   })
 }
 
@@ -418,8 +419,9 @@ const handleVoiceTaskCompleted = (data) => {
   voiceAnswerPayload.value = {
     answer_type: 'voice',
     answer_value: data?.transcript || (data?.skipped ? 'skipped' : 'voice_recorded'),
-    voice_file: data?.filePath || null,
-    filePath: data?.filePath || null,
+    voice_file: data?.audioUrl || null,
+    audio_url: data?.audioUrl || null,
+    audio_object_key: data?.objectName || null,
     duration_sec: data?.durationSec || 0,
     skipped: !!data?.skipped,
   }

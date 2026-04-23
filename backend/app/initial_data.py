@@ -24,6 +24,8 @@ import app.models.assessment  # noqa: F401 (register models)
 import app.models.intervention  # noqa: F401 (register models)
 import app.models.notification  # noqa: F401 (register models)
 import app.models.user  # noqa: F401 (register models)
+import app.models.rag  # noqa: F401 (register models)
+from app.models.rag import KnowledgeType, RagKnowledgeItem
 
 
 def _normalize_text(value: str) -> str:
@@ -202,6 +204,55 @@ def seed_question_bank(db) -> Tuple[int, int, Dict[str, int]]:
     return added, updated, domain_counter
 
 
+def seed_rag_knowledge(db) -> Tuple[int, int]:
+    base_items = [
+        {
+            "kb_type": KnowledgeType.rule,
+            "title": "MoCA 受教育年限校正规则",
+            "content": "当受教育年限为0年时，MoCA总分加1分进行校正，最高不超过30分。",
+            "tags": "moca,education,rule",
+            "metadata_json": {"rule_id": "R-MOCA-EDU-001", "priority": "hard"},
+        },
+        {
+            "kb_type": KnowledgeType.rule,
+            "title": "高风险转诊触发条件",
+            "content": "当评估结果为high_risk或出现快速下降趋势时，建议尽快转诊神经内科/记忆门诊复评。",
+            "tags": "risk,referral,rule",
+            "metadata_json": {"rule_id": "R-REF-001", "priority": "hard"},
+        },
+        {
+            "kb_type": KnowledgeType.intervention,
+            "title": "记忆域薄弱干预建议",
+            "content": "建议每日进行15-20分钟记忆训练（词语回忆、故事复述），每周复盘完成率。",
+            "tags": "memory,intervention,training",
+            "metadata_json": {"code": "I-MEM-001", "frequency": "daily"},
+        },
+        {
+            "kb_type": KnowledgeType.template,
+            "title": "家属解释模板-轻度风险",
+            "content": "当前结果提示存在轻度认知风险，建议1-3个月内复评，并保持规律作息与认知训练。",
+            "tags": "family,template,mild_risk",
+            "metadata_json": {"template_id": "T-FAM-001"},
+        },
+    ]
+
+    existing = {
+        (item.kb_type.value, _normalize_text(item.title).lower())
+        for item in db.query(RagKnowledgeItem).all()
+    }
+    created = 0
+    updated = 0
+    for row in base_items:
+        key = (row["kb_type"].value, _normalize_text(row["title"]).lower())
+        if key in existing:
+            # keep idempotent behavior; do not overwrite user-edited content
+            continue
+        db.add(RagKnowledgeItem(**row))
+        created += 1
+
+    return created, updated
+
+
 def seed() -> None:
     print("Creating database tables...")
     Base.metadata.create_all(bind=engine)
@@ -216,11 +267,13 @@ def seed() -> None:
 
         print("Syncing question bank...")
         added, updated, domain_counter = seed_question_bank(db)
+        rag_created, _ = seed_rag_knowledge(db)
 
         db.commit()
         total_questions = db.query(Question).filter(Question.is_active == True).count()
         print(f"  Question sync done: added={added}, updated={updated}, active_total={total_questions}")
         print(f"  Domain distribution: {domain_counter}")
+        print(f"  RAG knowledge seeded: created={rag_created}")
         print("Seed completed successfully.")
     except Exception as exc:
         db.rollback()

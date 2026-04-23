@@ -24,8 +24,10 @@ from app.models.assessment import (
     QuestionDomain,
     RiskLevel,
 )
+from app.models.rag import KnowledgeType
 from app.services.deep_model_service import get_deep_model_service
 from app.services.notification_service import create_assessment_notifications
+from app.services.rag_service import rag_service
 
 
 DOMAIN_MAX_MMSE_POINTS = {
@@ -691,6 +693,86 @@ def _build_clinical_report(
     }
 
 
+def _collect_rag_knowledge_ids(
+    db,
+    *,
+    queries: List[str],
+    kb_type: Optional[KnowledgeType] = None,
+    top_k_per_query: int = 2,
+) -> List[int]:
+    """
+    Retrieve knowledge ids from FAISS RAG index for explainable traceability.
+    Best-effort: any retrieval/runtime error falls back to empty ids.
+    """
+    out: List[int] = []
+    seen = set()
+    try:
+        for query in queries:
+            q = (query or "").strip()
+            if not q:
+                continue
+            hits = rag_service.search(
+                db,
+                query=q,
+                top_k=max(1, top_k_per_query),
+                kb_type=kb_type,
+                tag=None,
+            )
+            for item, _score in hits:
+                if item.id in seen:
+                    continue
+                seen.add(item.id)
+                out.append(item.id)
+    except Exception:
+        return []
+    return out
+
+
+def _build_rag_recommendation_items(
+    db,
+    *,
+    risk_level: RiskLevel,
+    weak_labels: str,
+    quality_issues: List[str],
+) -> List[Dict[str, Any]]:
+    if risk_level == RiskLevel.normal:
+        actions = [
+            f"保持规律作息、适度社交与运动，重点训练：{weak_labels}。",
+            "建议6个月后完成一次复评。",
+        ]
+    elif risk_level == RiskLevel.mild_risk:
+        actions = [
+            f"围绕薄弱域（{weak_labels}）开展认知训练，持续1-3个月。",
+            "建议社区随访并预约门诊复评。",
+        ]
+    else:
+        actions = [
+            f"针对薄弱域（{weak_labels}）立即启动家属协同干预。",
+            "建议尽快转诊神经内科/记忆门诊进一步评估。",
+        ]
+
+    if quality_issues:
+        actions.append(
+            f"数据质量提示：{','.join(quality_issues)} 模态质量偏低，建议下次在安静环境重测并补全语音/绘图任务。"
+        )
+
+    items: List[Dict[str, Any]] = []
+    for action in actions:
+        ids = _collect_rag_knowledge_ids(
+            db,
+            queries=[action, weak_labels],
+            kb_type=None,
+            top_k_per_query=2,
+        )
+        items.append(
+            {
+                "action": action,
+                "knowledge_ids": ids,
+            }
+        )
+    return items
+
+
 def _generate_probabilities(
     domain_scores: Dict[str, float],
     mmse_score: float,
@@ -825,6 +907,7 @@ def _generate_explainability(
     deep_payload: Optional[Dict[str, Any]] = None,
     scale_payload: Optional[Dict[str, Any]] = None,
     clinical_report: Optional[Dict[str, Any]] = None,
+    recommendation_items: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Build SHAP-like payload:
@@ -893,6 +976,8 @@ def _generate_explainability(
         payload["education_correction_points"] = scale_payload.get("education_correction_points")
     if clinical_report is not None:
         payload["clinical_report"] = clinical_report
+    if recommendation_items is not None:
+        payload["recommendation_items"] = recommendation_items
     if deep_payload:
         if deep_payload.get("attention_matrix") is not None:
             payload["attention_matrix"] = deep_payload["attention_matrix"]
@@ -1029,6 +1114,29 @@ def analyze_session(session_id: int, db_url: str) -> Dict[str, Any]:
             scale_payload=scale_payload,
             confidence=confidence,
         )
+        weak_domains = sorted(domain_scores.items(), key=lambda x: x[1])[:3]
+        weak_labels = "、".join(DOMAIN_LABELS.get(k, k) for k, _ in weak_domains)
+        quality_issues = [k for k, v in modality_features.items() if v["quality"] < 0.6]
+
+        clinical_report["knowledge_ids"] = _collect_rag_knowledge_ids(
+            db,
+            queries=[
+                clinical_report.get("risk_summary", ""),
+                clinical_report.get("clinical_note", ""),
+                clinical_report.get("scale_interpretation", {}).get("mmse", ""),
+                clinical_report.get("scale_interpretation", {}).get("moca", ""),
+                clinical_report.get("scale_interpretation", {}).get("education_correction_note", ""),
+            ],
+            kb_type=KnowledgeType.rule,
+            top_k_per_query=2,
+        )
+        recommendation_items = _build_rag_recommendation_items(
+            db,
+            risk_level=risk_level,
+            weak_labels=weak_labels,
+            quality_issues=quality_issues,
+        )
+        clinical_report["recommended_actions"] = recommendation_items
 
         explainability = _generate_explainability(
             domain_scores,
@@ -1039,6 +1147,7 @@ def analyze_session(session_id: int, db_url: str) -> Dict[str, Any]:
             deep_payload=deep_payload,
             scale_payload=scale_payload,
             clinical_report=clinical_report,
+            recommendation_items=recommendation_items,
         )
         recommendation = _generate_recommendation(
             risk_level=risk_level,
@@ -1105,6 +1214,7 @@ def analyze_session(session_id: int, db_url: str) -> Dict[str, Any]:
             "mmse_subscores": scale_payload["mmse_subscores"],
             "moca_subscores": scale_payload["moca_subscores"],
             "clinical_report": clinical_report,
+            "recommendation_items": recommendation_items,
             "domain_scores": domain_scores,
             "model_confidence": confidence,
             "modality_quality": explainability["modality_quality"],

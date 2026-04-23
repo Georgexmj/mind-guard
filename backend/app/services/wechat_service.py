@@ -15,15 +15,18 @@ _TOKEN_CACHE: dict[str, Any] = {"token": None, "expires_at": None}
 
 
 def _use_mock_mode() -> bool:
-    return bool(settings.WECHAT_MOCK_MODE) or not (
-        settings.WECHAT_MP_APPID
-        and settings.WECHAT_MP_SECRET
-    )
+    return bool(settings.WECHAT_MOCK_MODE)
+
+
+def _wechat_credentials_ready() -> bool:
+    return bool(settings.WECHAT_MP_APPID and settings.WECHAT_MP_SECRET)
 
 
 def _get_access_token() -> str:
     if _use_mock_mode():
         return "mock-token"
+    if not _wechat_credentials_ready():
+        raise RuntimeError("WeChat credentials are not configured")
 
     now = datetime.utcnow()
     token = _TOKEN_CACHE.get("token")
@@ -69,6 +72,8 @@ def exchange_code_for_openid(code: str) -> Dict[str, Optional[str]]:
             "session_key": "mock-session-key",
             "mode": "mock",
         }
+    if not _wechat_credentials_ready():
+        raise RuntimeError("WeChat credentials are not configured")
 
     url = "https://api.weixin.qq.com/sns/jscode2session"
     params = {
@@ -112,6 +117,8 @@ def send_subscribe_message(
         template_id = "mock-template-id"
     if not template_id:
         return {"ok": False, "request_id": request_id, "mode": "skip", "reason": "missing_template_id"}
+    if not _use_mock_mode() and not _wechat_credentials_ready():
+        return {"ok": False, "request_id": request_id, "mode": "skip", "reason": "wechat_credentials_not_configured"}
 
     if _use_mock_mode():
         return {

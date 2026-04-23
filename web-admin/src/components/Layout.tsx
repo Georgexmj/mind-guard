@@ -32,6 +32,7 @@ type AppMenuItem = {
 }
 
 const menuItems: AppMenuItem[] = [
+  { key: '/elder-home', icon: <DashboardOutlined />, label: '我的看板', roles: ['elder', 'family'] },
   { key: '/dashboard', icon: <DashboardOutlined />, label: '运营看板', roles: ['admin', 'doctor'] },
   { key: '/elders', icon: <UserOutlined />, label: '老人管理', roles: ['admin', 'doctor'] },
   { key: '/assessments', icon: <FileTextOutlined />, label: '评估管理', roles: ['admin', 'doctor', 'elder', 'family'] },
@@ -41,6 +42,7 @@ const menuItems: AppMenuItem[] = [
 ]
 
 const pageTitleMap: Record<string, string> = {
+  '/elder-home': '我的看板',
   '/dashboard': '运营看板',
   '/elders': '老人管理',
   '/assessments': '评估管理',

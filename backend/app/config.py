@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     WECHAT_TEMPLATE_ID_ADHERENCE: str = ""
     WECHAT_TEMPLATE_ID_REASSESSMENT: str = ""
     WECHAT_MINIPROGRAM_PAGE: str = "pages/index/index"
-    WECHAT_MOCK_MODE: bool = True
+    WECHAT_MOCK_MODE: bool = False
 
     # Reminder scheduling (Celery Beat)
     CELERY_BEAT_ENABLED: bool = True

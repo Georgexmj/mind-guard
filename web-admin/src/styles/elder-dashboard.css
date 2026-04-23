@@ -1,0 +1,335 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
+.elder-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.elder-dashboard-loading {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+}
+
+.elder-hero {
+  border-radius: 24px;
+  border: 1px solid rgba(246, 64, 117, 0.22);
+  background:
+    radial-gradient(55rem 20rem at 110% -50%, rgba(255, 122, 158, 0.28), transparent 56%),
+    radial-gradient(45rem 18rem at -10% 120%, rgba(31, 214, 174, 0.17), transparent 58%),
+    linear-gradient(122deg, rgba(255, 249, 252, 0.95), rgba(255, 255, 255, 0.92));
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.elder-hero-kicker {
+  display: block;
+  font-size: 14px;
+  color: #8b5f70;
+}
+
+.elder-hero-title.ant-typography {
+  margin: 4px 0 0 !important;
+  font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+  color: #1f2432 !important;
+  letter-spacing: 0.2px;
+}
+
+.elder-hero-subtitle.ant-typography {
+  display: block;
+  margin-top: 4px;
+  color: #5f6f7e;
+}
+
+.elder-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.elder-risk-tag {
+  border-radius: 999px;
+  font-weight: 700;
+  padding: 5px 12px;
+}
+
+.elder-risk-tag-normal {
+  color: #009f6b;
+  border-color: #9ae2c7;
+  background: #e9faf3;
+}
+
+.elder-risk-tag-mild {
+  color: #c77c0a;
+  border-color: #f1d8a2;
+  background: #fff8e8;
+}
+
+.elder-risk-tag-high {
+  color: #dd1f58;
+  border-color: #f5a3bc;
+  background: #fff0f5;
+}
+
+.elder-ghost-btn.ant-btn {
+  border-radius: 14px;
+  height: 44px;
+  border: 1px solid rgba(45, 62, 80, 0.15);
+}
+
+.elder-primary-btn.ant-btn {
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(130deg, #ff2f6d, #ff4f8d) !important;
+  box-shadow: 0 16px 26px rgba(255, 51, 106, 0.24);
+}
+
+.elder-stats-grid .ant-card {
+  border-radius: 18px;
+}
+
+.elder-stat-card .ant-card-body {
+  padding: 16px 16px 14px;
+}
+
+.elder-stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.elder-stat-top .ant-typography {
+  color: #5d6f7f;
+}
+
+.elder-stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+
+.elder-stat-value {
+  margin-top: 6px;
+  font-size: 42px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  color: #1f2a38;
+  line-height: 1;
+}
+
+.elder-stat-value span {
+  margin-left: 6px;
+  font-size: 18px;
+  color: #6f7d8a;
+}
+
+.elder-stat-delta {
+  margin-top: 6px;
+  color: #0f9f61;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.elder-stat-teal .elder-stat-icon {
+  color: #00a88b;
+  background: rgba(0, 168, 139, 0.14);
+}
+
+.elder-stat-violet .elder-stat-icon {
+  color: #8469f2;
+  background: rgba(132, 105, 242, 0.14);
+}
+
+.elder-stat-orange .elder-stat-icon {
+  color: #fb8b22;
+  background: rgba(251, 139, 34, 0.14);
+}
+
+.elder-stat-rose .elder-stat-icon {
+  color: #f44079;
+  background: rgba(244, 64, 121, 0.14);
+}
+
+.elder-panel {
+  border-radius: 20px;
+}
+
+.elder-panel .ant-card-head-title {
+  padding: 16px 0 8px;
+}
+
+.elder-panel-title {
+  font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+  font-weight: 700;
+  font-size: 31px;
+}
+
+.elder-panel-title-wrap {
+  color: #242f3b;
+}
+
+.elder-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.elder-schedule-row {
+  border: 1px solid rgba(48, 67, 85, 0.1);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.elder-schedule-title {
+  font-weight: 700;
+  color: #26323f;
+}
+
+.elder-schedule-meta {
+  margin-top: 4px;
+  color: #6c7f8d;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.elder-risk-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.elder-risk-row-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.elder-risk-track {
+  width: 100%;
+  height: 11px;
+  border-radius: 999px;
+  background: #edf2f6;
+  overflow: hidden;
+}
+
+.elder-risk-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.elder-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.elder-alert {
+  border-left: 4px solid transparent;
+  border-radius: 14px;
+  background: #fafcff;
+  border: 1px solid rgba(48, 67, 85, 0.1);
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.elder-alert-normal {
+  border-left-color: #08a86f;
+}
+
+.elder-alert-mild {
+  border-left-color: #eb9d17;
+}
+
+.elder-alert-high {
+  border-left-color: #e93d6d;
+}
+
+.elder-alert-title {
+  font-weight: 700;
+  color: #26323f;
+}
+
+.elder-alert-content {
+  margin-top: 4px;
+  color: #667888;
+}
+
+.elder-alert-time {
+  font-size: 12px;
+  color: #8fa1ae;
+  white-space: nowrap;
+}
+
+.elder-tip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.elder-tip-list li {
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px dashed rgba(56, 72, 90, 0.2);
+  background: rgba(249, 251, 255, 0.9);
+  color: #394a59;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.elder-tip-list li span {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #ff3772, #ff7a8d);
+  color: #fff;
+  font-size: 12px;
+  display: inline-grid;
+  place-items: center;
+  font-family: 'Outfit', sans-serif;
+}
+
+@media (max-width: 1200px) {
+  .elder-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .elder-hero-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .elder-hero-title.ant-typography {
+    font-size: 28px !important;
+  }
+
+  .elder-panel-title {
+    font-size: 24px;
+  }
+
+  .elder-stat-value {
+    font-size: 34px;
+  }
+}

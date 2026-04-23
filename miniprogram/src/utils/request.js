@@ -86,6 +86,70 @@ export function request(options) {
   })
 }
 
+export function uploadFile(options) {
+  return new Promise((resolve, reject) => {
+    const auth = useAuthStore()
+    const candidates = getApiBaseUrlCandidates()
+    let index = 0
+
+    const send = () => {
+      const baseUrl = candidates[index]
+      const url = `${baseUrl}${options.url}`
+
+      wx.uploadFile({
+        url,
+        filePath: options.filePath,
+        name: options.name || 'file',
+        formData: options.formData || {},
+        timeout: options.timeout || 30000,
+        header: {
+          ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+          ...(options.header || {}),
+        },
+        success: (res) => {
+          if (res.statusCode === 404 && index < candidates.length - 1) {
+            index += 1
+            send()
+            return
+          }
+
+          if (res.statusCode === 401) {
+            auth.logout()
+            reject(new Error('Login expired, please sign in again.'))
+            return
+          }
+
+          let data = null
+          try {
+            data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+          } catch {
+            data = null
+          }
+
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            if (index > 0) setApiBaseUrl(baseUrl)
+            resolve(data)
+            return
+          }
+
+          reject(new Error(parseHttpError({ data }) || 'Upload failed'))
+        },
+        fail: (err) => {
+          if (index < candidates.length - 1) {
+            index += 1
+            send()
+            return
+          }
+          console.error('Upload failed:', err)
+          reject(new Error('File upload failed, please check network and domain whitelist settings.'))
+        },
+      })
+    }
+
+    send()
+  })
+}
+
 export const api = {
   login: (phone, password) => request({ url: '/auth/login', method: 'POST', data: { phone, password } }),
 
@@ -101,6 +165,13 @@ export const api = {
       url: `/assessments/sessions/${sessionId}/answers`,
       method: 'POST',
       data: answer,
+    }),
+
+  uploadSessionAudio: (sessionId, filePath) =>
+    uploadFile({
+      url: `/assessments/sessions/${sessionId}/uploads/audio`,
+      filePath,
+      name: 'file',
     }),
 
   completeSession: (sessionId) => request({ url: `/assessments/sessions/${sessionId}/complete`, method: 'POST' }),

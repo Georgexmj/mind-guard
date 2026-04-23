@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:bff": "node bff/server.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.3",
@@ -17,7 +19,8 @@
     "echarts-for-react": "^3.0.2",
     "axios": "^1.6.7",
     "dayjs": "^1.11.10",
-    "zustand": "^4.5.2"
+    "zustand": "^4.5.2",
+    "hono": "^4.6.10"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",

@@ -9,6 +9,7 @@ import AssessmentDetailPage from './pages/AssessmentDetailPage'
 import InterventionsPage from './pages/InterventionsPage'
 import QuestionsPage from './pages/QuestionsPage'
 import NotificationsPage from './pages/NotificationsPage'
+import ElderDashboardPage from './pages/ElderDashboardPage'
 import Layout from './components/Layout'
 import type { User } from './types'
 
@@ -21,7 +22,7 @@ const getDefaultRouteByRole = (role?: UserRole) => {
       return '/dashboard'
     case 'elder':
     case 'family':
-      return '/assessments'
+      return '/elder-home'
     default:
       return '/login'
   }
@@ -92,6 +93,14 @@ function App() {
             element={
               <RoleRoute allowedRoles={['admin', 'doctor']}>
                 <ElderDetailPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="elder-home"
+            element={
+              <RoleRoute allowedRoles={['elder', 'family']}>
+                <ElderDashboardPage />
               </RoleRoute>
             }
           />

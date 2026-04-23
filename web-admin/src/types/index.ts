@@ -305,3 +305,54 @@ export interface WorkbenchQueues {
     low_adherence: number
   }
 }
+
+export interface ElderDashboardMetric {
+  key: string
+  label: string
+  value: number
+  unit?: string
+  delta: number
+  trend: 'up' | 'down' | 'flat'
+  tone: 'teal' | 'violet' | 'orange' | 'rose'
+}
+
+export interface ElderScheduleItem {
+  id: number
+  title: string
+  at: string
+  status: 'pending' | 'due' | 'done'
+  duration_minutes: number
+}
+
+export interface ElderRiskBucket {
+  label: string
+  count: number
+  color: string
+}
+
+export interface ElderAlertItem {
+  id: number
+  title: string
+  content: string
+  created_at: string
+  level: 'normal' | 'mild_risk' | 'high_risk'
+}
+
+export interface ElderTrendPoint {
+  week: string
+  cognitive_score: number
+  training_minutes: number
+}
+
+export interface ElderDashboardPayload {
+  elder_name: string
+  greeting: string
+  risk_level: 'normal' | 'mild_risk' | 'high_risk'
+  next_assessment_at?: string
+  metrics: ElderDashboardMetric[]
+  schedule: ElderScheduleItem[]
+  risk_distribution: ElderRiskBucket[]
+  alerts: ElderAlertItem[]
+  trend: ElderTrendPoint[]
+  tips: string[]
+}

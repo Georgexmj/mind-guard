@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="result-page">
     <view v-if="isPolling" class="polling-state">
       <view class="spinner-wrap">
@@ -165,10 +165,23 @@ const pollInterval = 3000
 let pollTimer = null
 let countTimer = null
 
+const elderId = ref('')
+
 onLoad((options = {}) => {
-  sessionId.value = options.sessionId || assessmentStore.currentSessionId || ''
+  sessionId.value = options.sessionId || options.session_id || assessmentStore.currentSessionId || ''
   taskId.value = options.taskId || assessmentStore.taskId || ''
+  elderId.value = options.elderId || options.elder_id || ''
   fromHistory.value = options.fromHistory === 'true'
+
+  // 检查是否为家属查看模式
+  const familyViewMode = uni.getStorageSync('family_view_mode')
+  const viewingElder = uni.getStorageSync('viewing_elder')
+  
+  if (familyViewMode === 'true' && viewingElder && elderId.value) {
+    // 家属查看模式：使用公共API获取结果
+    fetchFamilyResult()
+    return
+  }
 
   if (!sessionId.value) {
     errorMsg.value = '评估会话信息丢失，请重新进行评估。'
@@ -396,6 +409,21 @@ async function checkTaskStatus() {
     } catch {
       // ignore temporary failure
     }
+  }
+}
+
+async function fetchFamilyResult() {
+  try {
+    const data = await api.getElderSessionResult(elderId.value, sessionId.value)
+    if (data && (data.mmse_score !== undefined || data.risk_level)) {
+      result.value = data
+      assessmentStore.setResult(data)
+      return
+    }
+    errorMsg.value = '结果数据格式异常，请重试。'
+  } catch (err) {
+    console.error('Fetch family result error:', err)
+    errorMsg.value = err?.message || '获取评估结果失败，请重试。'
   }
 }
 

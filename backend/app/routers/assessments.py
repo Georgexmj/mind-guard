@@ -4,7 +4,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from typing import List, Optional
 
 from celery.result import AsyncResult
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,7 @@ from app.services import assessment_service
 from app.services.reminder_service import dispatch_reassessment_reminders as dispatch_reassessment_reminders_service
 from app.services.notification_service import upsert_notification
 from app.services.intervention_reco import build_top5_from_result, suggest_next_reassessment_date
+from app.services.minio_service import build_object_url, upload_bytes
 from app.services.report_service import build_doctor_report_pdf
 from app.services.wechat_service import send_to_user_by_binding
 from app.tasks.celery_app import celery_app
@@ -118,10 +119,45 @@ def create_session(
 def list_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    elder_id: Optional[int] = Query(None),
 ):
     if current_user.role in (UserRole.admin, UserRole.doctor):
         return db.query(AssessmentSession).order_by(AssessmentSession.created_at.desc()).all()
-    return assessment_service.get_sessions_by_user(db, current_user.id)
+    
+    if current_user.role == UserRole.elder:
+        return assessment_service.get_sessions_by_user(db, current_user.id)
+    
+    if current_user.role == UserRole.family:
+        if elder_id is not None:
+            relation = (
+                db.query(UserRelationship)
+                .filter(
+                    UserRelationship.family_id == current_user.id,
+                    UserRelationship.elder_id == elder_id,
+                )
+                .first()
+            )
+            if not relation:
+                raise HTTPException(status_code=403, detail="Family member has no access to this elder")
+            return assessment_service.get_sessions_by_user(db, elder_id)
+        
+        elders = (
+            db.query(User)
+            .join(UserRelationship, UserRelationship.elder_id == User.id)
+            .filter(UserRelationship.family_id == current_user.id)
+            .all()
+        )
+        elder_ids = [e.id for e in elders]
+        if not elder_ids:
+            return []
+        return (
+            db.query(AssessmentSession)
+            .filter(AssessmentSession.user_id.in_(elder_ids))
+            .order_by(AssessmentSession.created_at.desc())
+            .all()
+        )
+    
+    return []
 
 
 @router.get("/sessions/{session_id}", response_model=SessionOut)
@@ -166,6 +202,42 @@ def submit_answer(
     if not _can_access_session(db, current_user, session):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this session")
     return assessment_service.submit_answer(db, session_id, answer)
+
+
+@router.post("/sessions/{session_id}/uploads/audio")
+async def upload_audio_file(
+    session_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = assessment_service.get_session_by_id(db, session_id)
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found")
+    if not _can_access_session(db, current_user, session):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this session")
+
+    content_type = (file.content_type or "").lower()
+    if not (content_type.startswith("audio/") or content_type in {"application/octet-stream"}):
+        raise HTTPException(status_code=400, detail="Only audio files are supported")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    object_name = upload_bytes(
+        file_bytes=file_bytes,
+        filename=file.filename or "voice.mp3",
+        prefix=f"sessions/{session_id}/audio",
+        content_type=file.content_type or "audio/mpeg",
+    )
+    return {
+        "session_id": session_id,
+        "object_name": object_name,
+        "audio_url": build_object_url(object_name),
+        "size_bytes": len(file_bytes),
+        "content_type": file.content_type or "audio/mpeg",
+    }
 
 
 @router.post("/sessions/{session_id}/complete", status_code=status.HTTP_202_ACCEPTED)

@@ -3,13 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, users, assessments, questions, communities, dashboard, interventions, notifications
+from app.routers import auth, users, assessments, questions, communities, dashboard, interventions, notifications, public
+# from app.routers import rag  # disabled due to faiss dependency
+from .routers import child
 
 # Import all models to ensure they are registered with SQLAlchemy metadata
 import app.models.user  # noqa: F401
 import app.models.assessment  # noqa: F401
 import app.models.intervention  # noqa: F401
 import app.models.notification  # noqa: F401
+import app.models.rag  # noqa: F401
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -23,6 +26,8 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+
+app.include_router(child.router)
 
 # CORS Middleware
 app.add_middleware(
@@ -42,6 +47,8 @@ app.include_router(communities.router)
 app.include_router(dashboard.router)
 app.include_router(interventions.router)
 app.include_router(notifications.router)
+app.include_router(public.router)
+# app.include_router(rag.router)  # disabled due to faiss dependency
 
 
 @app.on_event("startup")

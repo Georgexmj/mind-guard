@@ -18,6 +18,7 @@ import type {
   NotificationItem,
   InterventionAdherenceAlert,
   InterventionTop5Recommendation,
+  ElderDashboardPayload,
 } from '../types'
 
 const apiClient = axios.create({
@@ -487,6 +488,16 @@ export const getDashboardHighRiskList = async (limit = 10): Promise<unknown[]> =
 
 export const getDashboardWorkbenchQueues = async (limit = 20): Promise<WorkbenchQueues> => {
   const response = await apiClient.get<WorkbenchQueues>('/dashboard/workbench-queues', { params: { limit } })
+  return response.data
+}
+
+export const getElderDashboard = async (): Promise<ElderDashboardPayload> => {
+  const response = await axios.get<ElderDashboardPayload>('/bff/elder/dashboard', {
+    timeout: 12000,
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('access_token') || ''}`,
+    },
+  })
   return response.data
 }
 

@@ -375,6 +375,7 @@ def get_result(db: Session, session_id: int) -> Optional[AssessmentResult]:
         result.education_correction_applied = explainability.get("education_correction_applied")
         result.education_correction_points = explainability.get("education_correction_points")
         result.clinical_report = explainability.get("clinical_report")
+        result.recommendation_items = explainability.get("recommendation_items")
     return result
 
 

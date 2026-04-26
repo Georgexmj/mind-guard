@@ -13,6 +13,15 @@ class CommunityOut(BaseModel):
     city: str
 
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    refresh_token: str | None = None
+
+class TokenData(BaseModel):
+    user_id: int
+    role: Optional[str] = None    
+
 class CommunityCreate(BaseModel):
     name: str
     province: str
@@ -80,7 +89,7 @@ class UserUpdate(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
     user: UserOut
 

@@ -1,416 +1,570 @@
-﻿<template>
-  <view class="profile-page">
-    <view class="profile-hero">
-      <view class="hero-avatar">
-        <text class="hero-avatar-text">{{ avatarLetter }}</text>
-      </view>
-      <view class="hero-info">
-        <text class="hero-name">{{ authStore.userName }}</text>
-        <text class="hero-phone">{{ maskedPhone }}</text>
-        <text class="hero-role">{{ roleLabel }}</text>
-      </view>
-    </view>
-
-    <view class="mg-card stats-card">
-      <view class="stat-item">
-        <text class="stat-value">{{ totalAssessments }}</text>
-        <text class="stat-label">累计评估</text>
-      </view>
-      <view class="stat-divider" />
-      <view class="stat-item">
-        <text class="stat-value" :style="{ color: latestRiskColor }">{{ latestRiskLabel }}</text>
-        <text class="stat-label">最近风险</text>
-      </view>
-      <view class="stat-divider" />
-      <view class="stat-item">
-        <text class="stat-value">{{ avgScore }}</text>
-        <text class="stat-label">平均分</text>
-      </view>
-    </view>
-
-    <view class="section">
-      <text class="section-title">评估历史记录</text>
-      <view v-if="loadingHistory" class="mg-card loading-box">
-        <text class="loading-text">正在加载历史...</text>
-      </view>
-      <view v-else-if="sessions.length > 0" class="mg-card history-list">
-        <view v-for="session in sessions" :key="session.id" class="history-item" @tap="() => viewResult(session.id)">
-          <view class="history-left">
-            <view class="history-icon" :style="{ backgroundColor: getRiskColor(getSessionRisk(session)) }">
-              <text class="history-icon-text">{{ getRiskIcon(getSessionRisk(session)) }}</text>
+<!-- pages/profile/index.vue -->
+<template>
+  <view class="profile-container">
+    <!-- 家属查看模式界面 -->
+    <view v-if="isFamilyViewMode && viewingElder" class="family-profile">
+      <!-- 绑定信息卡片 -->
+      <view class="family-card">
+        <view class="card-header">
+          <text class="card-title">👨‍👩‍👧 子女与老人绑定信息</text>
+        </view>
+        <view class="family-content">
+          <view class="elder-info">
+            <view class="avatar-wrapper">
+              <text class="elder-avatar">👵</text>
             </view>
-            <view>
-              <text class="history-date">{{ formatDate(session.created_at) }}</text>
-              <text class="history-score">{{ getSessionScoreText(session) }}</text>
-              <text class="history-risk" :style="{ color: getRiskColor(getSessionRisk(session)) }">
-                {{ getRiskLabel(getSessionRisk(session)) }}
-              </text>
+            <view class="elder-detail">
+              <text class="elder-name">{{ viewingElder.name || '未知老人' }}</text>
+              <text class="elder-meta">已绑定老人</text>
             </view>
           </view>
-          <text class="history-arrow">›</text>
+          <view class="relation-badge">
+            <text class="relation-text">子女关系</text>
+          </view>
+        </view>
+        <view class="family-divider"></view>
+        <view class="family-info-list">
+          <view class="info-item">
+            <text class="info-label">老人年龄</text>
+            <text class="info-value">{{ viewingElder.age || '--' }}岁</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">联系电话</text>
+            <text class="info-value">{{ viewingElder.phone || '--' }}</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">上次测评</text>
+            <text class="info-value">{{ lastAssessmentTime || '暂无记录' }}</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">风险等级</text>
+            <text :class="['info-value', riskClass]">{{ riskLevelText }}</text>
+          </view>
+        </view>
+        <view class="family-actions">
+          <view class="action-btn" @click="goBackToElder">
+            <text class="action-icon">👈</text>
+            <text class="action-text">返回查看老人</text>
+          </view>
+          <view class="action-btn" @click="switchAccount">
+            <text class="action-icon">🔄</text>
+            <text class="action-text">切换账号</text>
+          </view>
         </view>
       </view>
-      <view v-else class="mg-card empty-box">
-        <text class="empty-title">暂无评估记录</text>
-        <text class="empty-tip">完成首次评估后，这里会显示您的历史变化趋势。</text>
-        <button class="mg-button-primary empty-btn" @tap="goToAssessment">去做评估</button>
+
+      <!-- 家属功能菜单 -->
+      <view class="family-menu">
+        <view class="menu-title">功能菜单</view>
+        <view class="menu-grid">
+          <view class="menu-item" @click="goToElderDetail">
+            <view class="menu-icon">👤</view>
+            <text class="menu-text">老人详情</text>
+          </view>
+          <view class="menu-item" @click="goToSettings">
+            <view class="menu-icon">⚙️</view>
+            <text class="menu-text">设置</text>
+          </view>
+        </view>
       </view>
     </view>
 
-    <view class="section">
-      <text class="section-title">更多服务</text>
-      <view class="mg-card menu-list">
-        <view class="menu-item" @tap="bindFamily">
-          <view>
-            <text class="menu-title">绑定家属</text>
-            <text class="menu-desc">让家人一起关注您的认知健康状态</text>
+    <!-- 普通用户模式界面 -->
+    <view v-else>
+      <!-- 顶部用户信息卡片 -->
+      <view class="user-card">
+        <view class="user-info">
+          <view class="user-details">
+            <text class="user-name">{{ userName }}</text>
+            <text class="user-meta">72岁·女</text>
+            <view class="status-badge">
+              <text class="status-text">认知状态良好</text>
+            </view>
           </view>
-          <text class="menu-arrow">›</text>
         </view>
-        <view class="menu-item" @tap="contactUs">
-          <view>
-            <text class="menu-title">联系客服</text>
-            <text class="menu-desc">遇到问题可联系社区健康研究团队</text>
+        <view class="contact-row">
+          <view class="contact-item">
+            <text class="contact-label">本人电话</text>
+            <text class="contact-value">{{ userPhone }}</text>
           </view>
-          <text class="menu-arrow">›</text>
+          <view class="contact-item">
+            <text class="contact-label">监护人</text>
+            <text class="contact-value">李先生</text>
+          </view>
         </view>
-        <view class="menu-item" @tap="showAbout">
-          <view>
-            <text class="menu-title">关于忆守心安</text>
-            <text class="menu-desc">版本 1.0.0</text>
+      </view>
+
+    <!-- 统计卡片 -->
+    <view class="stats-card">
+      <view class="stat-item">
+        <text class="stat-number">{{ assessmentCount }}</text>
+        <text class="stat-label">测评次数</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <text class="stat-number">{{ trainingCount }}</text>
+        <text class="stat-label">训练次数</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <text class="stat-number">{{ continuousDays }}</text>
+        <text class="stat-label">连续打卡</text>
+      </view>
+    </view>
+
+    <!-- 近7天认知得分趋势 -->
+    <view class="trend-card">
+      <text class="trend-title">📈近7天认知得分趋势</text>
+      <view class="trend-chart">
+        <view class="trend-bars">
+          <view
+            v-for="(item, index) in trendData"
+            :key="index"
+            class="bar-item"
+            @click="showDayDetail(index, item.day, item.score)"
+          >
+            <view class="bar" :style="{ height: item.height + 'rpx' }"></view>
+            <text class="bar-label">{{ item.day }}</text>
           </view>
-          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+      <view class="latest-score">
+        <text class="score-label">最新得分：</text>
+        <text class="score-value">{{ latestScore }}分</text>
+      </view>
+    </view>
+
+    <!-- 当天详情弹窗 -->
+    <view v-if="showModal" class="modal-mask" @click="closeModal">
+      <view class="modal-container" @click.stop>
+        <view class="modal-header">
+          <text class="modal-title">{{ selectedDay }}认知详情</text>
+          <view class="modal-close" @click="closeModal">
+            <text>✕</text>
+          </view>
+        </view>
+        <scroll-view class="modal-body" scroll-y enhanced :show-scrollbar="false">
+          <view class="modal-score-section">
+            <text class="score-label-tag">当日得分</text>
+            <text class="score-value-big">{{ selectedScore }}<text class="score-unit-small">分</text></text>
+          </view>
+          <view v-if="dayTrainings.length > 0" class="modal-list-section">
+            <text class="section-title">📋 训练记录</text>
+            <view class="training-list-modal">
+              <view v-for="(training, idx) in dayTrainings" :key="idx" class="training-item-modal">
+                <view class="training-left">
+                  <text class="training-name-modal">{{ training.name }}</text>
+                  <text class="training-time-modal">{{ training.time }}</text>
+                </view>
+                <view class="training-right">
+                  <text class="training-score-modal">{{ training.score }}分</text>
+                  <text :class="['training-status-modal', training.status === 'completed' ? 'completed' : 'pending']">
+                    {{ training.status === 'completed' ? '✓ 已完成' : '○ 未完成' }}
+                  </text>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view v-if="dayAssessments.length > 0" class="modal-list-section">
+            <text class="section-title">📝 测评记录</text>
+            <view class="assessment-list-modal">
+              <view v-for="(assessment, idx) in dayAssessments" :key="idx" class="assessment-item-modal">
+                <text class="assessment-name-modal">{{ assessment.name }}</text>
+                <text class="assessment-score-modal">{{ assessment.score }}分</text>
+              </view>
+            </view>
+          </view>
+          <view v-if="dayTrainings.length === 0 && dayAssessments.length === 0" class="empty-modal">
+            <text class="empty-icon">📭</text>
+            <text class="empty-text-modal">当天暂无训练和测评记录</text>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 今日用药提醒 -->
+    <view class="medicine-card">
+      <text class="medicine-title">💊今日用药提醒</text>
+      <view class="medicine-list">
+        <view v-for="(medicine, index) in medicines" :key="medicine.id" class="medicine-item">
+          <view class="medicine-info">
+            <text class="medicine-name">{{ medicine.name }}</text>
+            <text class="medicine-time">{{ medicine.time }}</text>
+          </view>
+          <view class="medicine-status" @click="toggleMedicine(index)">
+            <view :class="['status-circle', medicine.taken ? 'checked' : '']">
+              <text v-if="medicine.taken">✓</text>
+            </view>
+            <text :class="['status-text', medicine.taken ? 'taken' : 'pending']">
+              {{ medicine.taken ? '已服' : '标记服用' }}
+            </text>
+          </view>
         </view>
       </view>
     </view>
 
-    <view class="logout-wrap">
-      <button class="logout-btn" @tap="handleLogout">退出登录</button>
+    <!-- 我的成就 -->
+    <view class="achievement-card">
+      <text class="achievement-title">🏆我的成就</text>
+      <view class="achievement-grid">
+        <view v-for="(achievement, index) in achievements" :key="index" class="achievement-item" @click="onAchievementTap(index)">
+          <view class="achievement-icon" :style="{ backgroundColor: achievement.color }">
+            <text>{{ achievement.icon }}</text>
+          </view>
+          <text class="achievement-name">{{ achievement.name }}</text>
+        </view>
+      </view>
     </view>
 
-    <view style="height: 40rpx;" />
+    <!-- 测评记录 -->
+    <view class="records-card">
+      <text class="records-title">测评记录</text>
+      <view class="record-list">
+        <view v-for="(assessment, index) in assessments" :key="index" class="record-item" @click="onAssessmentTap(index)">
+          <view class="record-info">
+            <text class="record-name">{{ assessment.name }}</text>
+            <text class="record-date">{{ assessment.date }}</text>
+          </view>
+          <view class="record-score">
+            <text class="score-number">{{ assessment.score }}</text>
+            <text class="score-unit">分</text>
+          </view>
+          <text class="record-risk" :style="{ color: assessment.riskColor }">{{ assessment.risk }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 设置入口 -->
+    <view class="settings-card" @click="goToSettings">
+      <view class="settings-icon">⚙️</view>
+      <view class="settings-info">
+        <text class="settings-title">设置</text>
+        <text class="settings-desc">调整字体大小、语音播报等</text>
+      </view>
+      <text class="settings-arrow">›</text>
+    </view>
+    </view> <!-- 关闭普通用户模式 -->
   </view>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { useAuthStore } from '../../store/auth'
-import { api } from '../../utils/request'
 
-const authStore = useAuthStore()
+// 家属查看模式
+const isFamilyViewMode = ref(false)
+const viewingElder = ref(null)
+const lastAssessmentTime = ref('')
+const riskLevel = ref('normal')
 
-const sessions = ref([])
-const loadingHistory = ref(false)
-
-const avatarLetter = computed(() => {
-  const name = authStore.userName
-  return name ? name.charAt(0) : '您'
-})
-
-const maskedPhone = computed(() => {
-  const phone = authStore.userPhone
-  if (!phone || phone.length < 11) return phone || '未设置'
-  return `${phone.slice(0, 3)}****${phone.slice(-4)}`
-})
-
-const roleLabel = computed(() => {
-  const labels = {
-    elder: '老年用户',
-    elderly: '老年用户',
-    family: '家属用户',
-    doctor: '医护人员',
-    admin: '系统管理员',
+const riskLevelText = computed(() => {
+  const riskMap = {
+    'normal': '正常',
+    'mild': '轻度风险',
+    'moderate': '中度风险',
+    'severe': '重度风险'
   }
-  return labels[authStore.userRole] || '用户'
+  return riskMap[riskLevel.value] || '未知'
 })
 
-const totalAssessments = computed(() => sessions.value.length)
-
-const latestRiskLabel = computed(() => {
-  if (sessions.value.length === 0) return '--'
-  return getRiskLabel(getSessionRisk(sessions.value[0]))
+const riskClass = computed(() => {
+  const classMap = {
+    'normal': 'risk-normal',
+    'mild': 'risk-mild',
+    'moderate': 'risk-moderate',
+    'severe': 'risk-severe'
+  }
+  return classMap[riskLevel.value] || ''
 })
 
-const latestRiskColor = computed(() => {
-  if (sessions.value.length === 0) return '#7890a0'
-  return getRiskColor(getSessionRisk(sessions.value[0]))
-})
+// 用户信息
+const userName = ref('李奶奶')
+const userPhone = ref('138****5678')
 
-const avgScore = computed(() => {
-  const scored = sessions.value.filter((item) => item.mmse_score !== null && item.mmse_score !== undefined)
-  if (scored.length === 0) return '--'
-  const total = scored.reduce((sum, item) => sum + Number(item.mmse_score), 0)
-  return Math.round(total / scored.length)
-})
+// 统计数据
+const assessmentCount = ref(3)
+const trainingCount = ref(12)
+const continuousDays = ref('7天')
+const latestScore = ref(83)
 
-function getRiskColor(level) {
-  const colors = {
-    normal: '#16a34a',
-    low: '#16a34a',
-    mild_risk: '#d97706',
-    mild: '#d97706',
-    moderate: '#d97706',
-    mci: '#d97706',
-    in_progress: '#0284c7',
-    pending: '#0284c7',
-    completed: '#0284c7',
-    high: '#dc2626',
-    high_risk: '#dc2626',
-    severe: '#dc2626',
-    ad: '#dc2626',
-    failed: '#94a3b8',
+// 趋势数据
+const trendData = ref([
+  { day: '周一', height: 80, score: 78 },
+  { day: '周二', height: 100, score: 82 },
+  { day: '周三', height: 60, score: 75 },
+  { day: '周四', height: 90, score: 80 },
+  { day: '周五', height: 110, score: 85 },
+  { day: '周六', height: 130, score: 88 },
+  { day: '今天', height: 120, score: 83 }
+])
+
+// 用药提醒
+const medicines = ref([
+  { id: 1, name: '银杏叶片 2片', time: '① 早饭后', taken: true },
+  { id: 2, name: '维生素B12 1片', time: '① 午饭后', taken: true },
+  { id: 3, name: '钙片 1片', time: '① 晚饭后', taken: false }
+])
+
+// 成就列表
+const achievements = ref([
+  { name: '初次测评', icon: '🎉', color: '#fef3c7' },
+  { name: '连续7天', icon: '📅', color: '#dbeafe' },
+  { name: '记忆达人', icon: '🧠', color: '#dcfce7' },
+  { name: '训练满星', icon: '⭐', color: '#fef9c3' },
+  { name: '月度冠军', icon: '🏆', color: '#fed7aa' },
+  { name: '坚持30天', icon: '💪', color: '#e0f2fe' }
+])
+
+// 测评记录
+const assessments = ref([
+  { name: 'MMSE认知量表', date: '2026/4/22', score: 85, risk: '低风险', riskColor: '#22c55e' },
+  { name: 'MoCA认知评估', date: '2026/4/17', score: 78, risk: '低风险', riskColor: '#22c55e' }
+])
+
+// 弹窗相关
+const showModal = ref(false)
+const selectedDay = ref('')
+const selectedScore = ref(0)
+const dayTrainings = ref([])
+const dayAssessments = ref([])
+
+// 加载用户信息
+const loadUserData = () => {
+  try {
+    const user = uni.getStorageSync('user')
+    if (user) {
+      const userData = typeof user === 'string' ? JSON.parse(user) : user
+      if (userData.name) userName.value = userData.name
+      if (userData.phone) userPhone.value = userData.phone
+    }
+  } catch (e) {
+    console.error('加载用户信息失败', e)
   }
-  return colors[level] || '#94a3b8'
 }
 
-function getRiskLabel(level) {
-  const labels = {
-    normal: '正常',
-    low: '正常',
-    mild_risk: '轻度风险',
-    mild: '轻度风险',
-    moderate: '中度风险',
-    mci: '轻度风险',
-    in_progress: '评估中',
-    pending: '待处理',
-    completed: '分析中',
-    high: '高风险',
-    high_risk: '高风险',
-    severe: '高风险',
-    ad: '高风险',
-    failed: '失败',
-  }
-  return labels[level] || '未知'
-}
-
-function getRiskIcon(level) {
-  const icons = {
-    normal: '✓',
-    low: '✓',
-    mild_risk: '!',
-    mild: '!',
-    moderate: '!',
-    mci: '!',
-    in_progress: '…',
-    pending: '…',
-    completed: '…',
-    high: '!',
-    high_risk: '!',
-    severe: '!',
-    ad: '!',
-    failed: '×',
-  }
-  return icons[level] || '?'
-}
-
-function getSessionRisk(session) {
-  if (!session) return 'pending'
-  if (session.risk_level) return session.risk_level
-  if (session.status) return session.status
-  return 'pending'
-}
-
-function getSessionScoreText(session) {
-  if (session?.mmse_score !== null && session?.mmse_score !== undefined) {
-    const score = Math.round(Number(session.mmse_score) * 10) / 10
-    return `MMSE：${score} / 30`
-  }
-  if (session?.status === 'failed') return '结果生成失败'
-  if (session?.status === 'completed') return '结果整理中'
-  if (session?.status === 'in_progress') return '评估进行中'
-  return '等待处理中'
-}
-
-function isEffectiveSession(session) {
-  const status = String(session?.status || '').toLowerCase()
-  if (status === 'completed' || status === 'failed') return true
-  if (session?.risk_level) return true
-  return session?.mmse_score !== null && session?.mmse_score !== undefined
-}
-
-async function enrichSessionWithResult(session) {
-  const merged = { ...session }
-
-  if (session?.status === 'completed' || session?.status === 'failed' || session?.task_id) {
-    try {
-      const result = await api.getResult(session.id)
-      if (result) {
-        merged.mmse_score = result.mmse_score
-        merged.risk_level = result.risk_level
-      } else if (session?.status === 'completed') {
-        merged.risk_level = 'completed'
+// 加载统计数据
+const loadStatsData = () => {
+  const token = uni.getStorageSync('token')
+  if (!token) return
+  uni.request({
+    url: 'http://localhost:8000/api/v1/elders/stats',
+    method: 'GET',
+    header: { Authorization: `Bearer ${token}` },
+    success: (res) => {
+      if (res.statusCode === 200 && res.data) {
+        assessmentCount.value = res.data.assessmentCount || 3
+        trainingCount.value = res.data.trainingCount || 12
+        continuousDays.value = `${res.data.continuousDays || 7}天`
       }
-    } catch (err) {
-      console.warn('fetch session result failed', session.id, err)
-      if (session?.status === 'completed') {
-        merged.risk_level = 'completed'
+    },
+    fail: () => console.log('统计数据接口暂不可用，使用默认值')
+  })
+}
+
+// 模拟数据
+const setMockDayData = (dayName) => {
+  const mockDataMap = {
+    '周一': { trainings: [{ name: '记忆力训练', time: '10:30', score: 82, status: 'completed' }], assessments: [] },
+    '周二': { trainings: [{ name: '反应力训练', time: '09:00', score: 85, status: 'completed' }], assessments: [] },
+    '周三': { trainings: [], assessments: [] },
+    '周四': { trainings: [], assessments: [] },
+    '周五': { trainings: [], assessments: [] },
+    '周六': { trainings: [], assessments: [] },
+    '今天': { trainings: [{ name: '记忆力训练', time: '09:00', score: 83, status: 'completed' }], assessments: [] }
+  }
+  const dayData = mockDataMap[dayName] || { trainings: [], assessments: [] }
+  dayTrainings.value = dayData.trainings
+  dayAssessments.value = dayData.assessments
+}
+
+const showDayDetail = (index, day, score) => {
+  showModal.value = true
+  selectedDay.value = day
+  selectedScore.value = score
+  setMockDayData(day)
+}
+
+const closeModal = () => { showModal.value = false }
+
+const saveMedicineStatusLocal = (medicineId, taken) => {
+  try {
+    const savedMedicines = uni.getStorageSync('medicines_status') || {}
+    savedMedicines[medicineId] = taken
+    uni.setStorageSync('medicines_status', savedMedicines)
+  } catch (e) { console.error('保存用药状态失败', e) }
+}
+
+const loadMedicineStatus = () => {
+  try {
+    const savedMedicines = uni.getStorageSync('medicines_status') || {}
+    medicines.value.forEach(medicine => {
+      if (savedMedicines[medicine.id] !== undefined) medicine.taken = savedMedicines[medicine.id]
+    })
+  } catch (e) { console.error('加载用药状态失败', e) }
+}
+
+const toggleMedicine = (index) => {
+  const medicine = medicines.value[index]
+  if (medicine) {
+    medicine.taken = !medicine.taken
+    saveMedicineStatusLocal(medicine.id, medicine.taken)
+    uni.showToast({ title: medicine.taken ? '已标记为已服' : '已取消', icon: 'success' })
+  }
+}
+
+const onAchievementTap = (index) => {
+  const achievement = achievements.value[index]
+  uni.showToast({ title: `${achievement.name} 成就`, icon: 'none' })
+}
+
+const onAssessmentTap = (index) => {
+  const assessment = assessments.value[index]
+  uni.navigateTo({ url: `/pages/result/index?name=${encodeURIComponent(assessment.name)}&date=${assessment.date}` })
+}
+
+const goToSettings = () => {
+  uni.navigateTo({ url: '/pages/settings/index' })
+}
+
+const goToElderDetail = () => {
+  uni.navigateTo({ url: '/pages/elder-detail/index' })
+}
+
+const goBackToElder = () => {
+  uni.switchTab({ url: '/pages/index/index' })
+}
+
+const switchAccount = () => {
+  uni.setStorageSync('family_view_mode', 'false')
+  uni.setStorageSync('viewing_elder', null)
+  uni.reLaunch({ url: '/pages/login/index' })
+}
+
+const loadFamilyData = () => {
+  const familyViewMode = uni.getStorageSync('family_view_mode')
+  const elderData = uni.getStorageSync('viewing_elder')
+  
+  if (familyViewMode === 'true' && elderData) {
+    isFamilyViewMode.value = true
+    viewingElder.value = typeof elderData === 'string' ? JSON.parse(elderData) : elderData
+    
+    // 尝试获取老人最新测评数据
+    const sessions = uni.getStorageSync('elder_sessions') || []
+    if (sessions.length > 0) {
+      const latestSession = sessions[0]
+      if (latestSession.created_at) {
+        const date = new Date(latestSession.created_at)
+        lastAssessmentTime.value = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+      }
+      if (latestSession.risk_level) {
+        riskLevel.value = latestSession.risk_level
       }
     }
-  }
-
-  return merged
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '--'
-  const d = new Date(dateStr)
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
-}
-
-function viewResult(sessionId) {
-  uni.navigateTo({ url: `/pages/result/index?sessionId=${sessionId}&fromHistory=true` })
-}
-
-function goToAssessment() {
-  uni.navigateTo({ url: '/pages/assessment/start/index' })
-}
-
-function bindFamily() {
-  wx.showModal({
-    title: '绑定家属',
-    content: '该功能正在开发中，后续将支持家属查看评估进展并接收提醒。',
-    showCancel: false,
-    confirmText: '我知道了',
-  })
-}
-
-function contactUs() {
-  wx.showActionSheet({
-    itemList: ['拨打咨询电话', '发送意见反馈'],
-    success: (res) => {
-      if (res.tapIndex === 0) {
-        wx.makePhoneCall({
-          phoneNumber: '0744-12345678',
-          fail: () => wx.showToast({ title: '拨号失败', icon: 'none' }),
-        })
-      } else {
-        wx.showModal({
-          title: '意见反馈',
-          content: '如有建议，请发送邮件至：mindguard@zjjxy.edu.cn',
-          showCancel: false,
-          confirmText: '好的',
-        })
-      }
-    },
-  })
-}
-
-function showAbout() {
-  wx.showModal({
-    title: '关于忆守心安',
-    content: '忆守心安 · 认知评估系统\n版本：1.0.0\n\n由张家界学院社区健康研究中心开发。',
-    showCancel: false,
-    confirmText: '关闭',
-  })
-}
-
-function handleLogout() {
-  wx.showModal({
-    title: '退出登录',
-    content: '确定要退出当前账号吗？',
-    confirmText: '退出',
-    cancelText: '取消',
-    confirmColor: '#dc2626',
-    success: (res) => {
-      if (res.confirm) authStore.logout()
-    },
-  })
-}
-
-async function loadHistory() {
-  loadingHistory.value = true
-  try {
-    const data = await api.getSessions()
-    const listRaw = Array.isArray(data) ? data : (data.sessions || data.items || [])
-    const list = [...listRaw]
-      .filter((item) => isEffectiveSession(item))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-    sessions.value = await Promise.all(list.map((item) => enrichSessionWithResult(item)))
-  } catch (err) {
-    console.error('load history error', err)
-    wx.showToast({ title: '加载历史失败', icon: 'none' })
-  } finally {
-    loadingHistory.value = false
+  } else {
+    isFamilyViewMode.value = false
+    viewingElder.value = null
   }
 }
-
-onShow(() => {
-  if (!authStore.enforceElderRole()) return
-  loadHistory()
-})
 
 onMounted(() => {
-  if (!authStore.enforceElderRole()) return
-  loadHistory()
+  loadFamilyData()
+  loadUserData()
+  loadStatsData()
+  loadMedicineStatus()
+})
+
+onShow(() => {
+  loadFamilyData()
+  loadUserData()
 })
 </script>
 
 <style scoped>
-.profile-page {
+.profile-container {
   min-height: 100vh;
-  padding: 24rpx;
+  background-color: #f0f2f5;
+  padding-bottom: 40rpx;
 }
 
-.profile-hero {
-  border-radius: 30rpx;
-  padding: 26rpx 24rpx;
-  background:
-    radial-gradient(circle at 100% -10%, rgba(124, 58, 237, 0.26), transparent 44%),
-    linear-gradient(140deg, #0f766e, #0284c7);
-  box-shadow: var(--mg-shadow-strong);
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
+/* 顶部用户信息卡片 */
+.user-card {
+  background: linear-gradient(135deg, #0891B2 0%, #0E7490 100%);
+  padding: 48rpx 32rpx 40rpx;
+  border-radius: 0 0 48rpx 48rpx;
 }
 
-.hero-avatar {
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 32rpx;
-  background: rgba(255, 255, 255, 0.2);
-  border: 2rpx solid rgba(255, 255, 255, 0.44);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.user-info {
+  margin-bottom: 40rpx;
 }
 
-.hero-avatar-text {
-  color: #ffffff;
-  font-size: 48rpx;
-  font-weight: 800;
-}
-
-.hero-info {
+.user-details {
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
-}
-
-.hero-name {
-  color: #ffffff;
-  font-size: 42rpx;
-  font-weight: 800;
-}
-
-.hero-phone {
-  color: rgba(238, 252, 255, 0.9);
-  font-size: 27rpx;
-}
-
-.hero-role {
-  color: #e5faff;
-  font-size: 28rpx;
-}
-
-.stats-card {
-  margin-top: -14rpx;
-  padding: 22rpx 12rpx;
-  display: flex;
   align-items: center;
-  box-shadow: var(--mg-shadow-soft);
+}
+
+.user-name {
+  font-size: 52rpx;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8rpx;
+  text-align: center;
+}
+
+.user-meta {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 20rpx;
+  text-align: center;
+}
+
+.status-badge {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 12rpx 32rpx;
+  border-radius: 40rpx;
+  display: inline-block;
+}
+
+.status-text {
+  font-size: 26rpx;
+  color: white;
+}
+
+.contact-row {
+  display: flex;
+  justify-content: space-between;
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 24rpx;
+  padding: 24rpx 40rpx;
+}
+
+.contact-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.contact-label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.contact-value {
+  font-size: 28rpx;
+  color: white;
+  font-weight: 500;
+}
+
+/* 统计卡片 */
+.stats-card {
+  display: flex;
+  background-color: white;
+  margin: -32rpx 32rpx 32rpx;
+  border-radius: 32rpx;
+  padding: 40rpx 0;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
 }
 
 .stat-item {
@@ -418,184 +572,708 @@ onMounted(() => {
   text-align: center;
 }
 
-.stat-value {
-  display: block;
-  color: #0f766e;
-  font-size: 42rpx;
+.stat-number {
+  font-size: 56rpx;
   font-weight: 800;
+  color: #0891B2;
+  display: block;
+  margin-bottom: 8rpx;
 }
 
 .stat-label {
-  display: block;
-  margin-top: 4rpx;
-  color: #708899;
-  font-size: 28rpx;
+  font-size: 26rpx;
+  color: #64748b;
 }
 
 .stat-divider {
   width: 2rpx;
-  height: 52rpx;
-  background: rgba(17, 34, 49, 0.1);
+  height: 80rpx;
+  background-color: #e2e8f0;
+  align-self: center;
 }
 
-.section {
-  margin-top: 18rpx;
+/* 趋势卡片 */
+.trend-card {
+  background-color: white;
+  margin: 0 32rpx 32rpx;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 }
 
-.section-title {
+.trend-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e293b;
   display: block;
-  margin-bottom: 12rpx;
-  color: #143445;
-  font-size: 34rpx;
-  font-weight: 800;
+  margin-bottom: 40rpx;
 }
 
-.loading-box {
-  padding: 28rpx;
-  text-align: center;
+.trend-chart {
+  margin-bottom: 32rpx;
 }
 
-.loading-text {
-  color: #6f8696;
-  font-size: 28rpx;
-}
-
-.history-list {
-  overflow: hidden;
-}
-
-.history-item {
-  padding: 20rpx;
+.trend-bars {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 2rpx solid rgba(17, 34, 49, 0.06);
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 320rpx;
 }
 
-.history-item:last-child {
-  border-bottom: none;
-}
-
-.history-left {
+.bar-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12rpx;
   flex: 1;
 }
 
-.history-icon {
-  width: 60rpx;
-  height: 60rpx;
-  border-radius: 18rpx;
+.bar {
+  width: 48rpx;
+  background: linear-gradient(180deg, #0891B2 0%, #22d3ee 100%);
+  border-radius: 32rpx 32rpx 12rpx 12rpx;
+  min-height: 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.bar-label {
+  font-size: 26rpx;
+  color: #94a3b8;
+}
+
+.latest-score {
+  text-align: center;
+  padding-top: 24rpx;
+  border-top: 2rpx solid #f1f5f9;
+  margin-top: 8rpx;
+}
+
+.score-label {
+  font-size: 28rpx;
+  color: #64748b;
+}
+
+.score-value {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #0891B2;
+}
+
+/* 用药提醒卡片 */
+.medicine-card {
+  background-color: white;
+  margin: 0 32rpx 32rpx;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.medicine-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.medicine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.medicine-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid #f1f5f9;
+}
+
+.medicine-item:last-child {
+  border-bottom: none;
+}
+
+.medicine-info {
+  flex: 1;
+}
+
+.medicine-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.medicine-time {
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+
+.medicine-status {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 12rpx 0 12rpx 24rpx;
+}
+
+.status-circle {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 3rpx solid #cbd5e1;
+  background-color: white;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.history-icon-text {
-  color: #ffffff;
-  font-size: 30rpx;
-  font-weight: 800;
+.status-circle.checked {
+  background-color: #0891B2;
+  border-color: #0891B2;
 }
 
-.history-date {
-  display: block;
-  color: #1f3d4f;
-  font-size: 30rpx;
-  font-weight: 700;
+.status-circle text {
+  color: white;
+  font-size: 28rpx;
+  font-weight: bold;
 }
 
-.history-score {
-  display: block;
-  margin-top: 2rpx;
-  color: #6d8595;
-  font-size: 29rpx;
+.status-text {
+  font-size: 26rpx;
+  font-weight: 500;
+  min-width: 100rpx;
 }
 
-.history-risk {
-  display: block;
-  margin-top: 2rpx;
-  font-size: 29rpx;
-  font-weight: 700;
+.status-text.taken {
+  color: #16a34a;
 }
 
-.history-arrow {
-  color: #8ba0ae;
-  font-size: 36rpx;
+.status-text.pending {
+  color: #64748b;
 }
 
-.empty-box {
-  padding: 34rpx 24rpx;
-  text-align: center;
+/* 成就卡片 */
+.achievement-card {
+  background-color: white;
+  margin: 0 32rpx 32rpx;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 }
 
-.empty-title {
-  display: block;
-  color: #2c4759;
+.achievement-title {
   font-size: 32rpx;
-  font-weight: 700;
-}
-
-.empty-tip {
+  font-weight: 600;
+  color: #1e293b;
   display: block;
-  margin-top: 8rpx;
-  color: #738b9b;
-  font-size: 27rpx;
+  margin-bottom: 24rpx;
 }
 
-.empty-btn {
-  margin-top: 16rpx;
+.achievement-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32rpx;
 }
 
-.menu-list {
-  overflow: hidden;
+.achievement-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(33.33% - 22rpx);
 }
 
-.menu-item {
-  padding: 20rpx;
+.achievement-icon {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  border-bottom: 2rpx solid rgba(17, 34, 49, 0.06);
+  justify-content: center;
+  margin-bottom: 12rpx;
+  font-size: 44rpx;
 }
 
-.menu-item:last-child {
+.achievement-name {
+  font-size: 24rpx;
+  color: #475569;
+}
+
+/* 测评记录卡片 */
+.records-card {
+  background-color: white;
+  margin: 0 32rpx 40rpx;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.records-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.record-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 2rpx solid #f1f5f9;
+}
+
+.record-item:last-child {
   border-bottom: none;
 }
 
-.menu-title {
-  display: block;
-  color: #1f3d4f;
+.record-info {
+  flex: 2;
+}
+
+.record-name {
   font-size: 30rpx;
-  font-weight: 700;
-}
-
-.menu-desc {
+  font-weight: 500;
+  color: #1e293b;
   display: block;
-  margin-top: 4rpx;
-  color: #6e8595;
-  font-size: 28rpx;
+  margin-bottom: 6rpx;
 }
 
-.menu-arrow {
-  color: #8aa0ae;
-  font-size: 36rpx;
+.record-date {
+  font-size: 24rpx;
+  color: #94a3b8;
 }
 
-.logout-wrap {
-  margin-top: 20rpx;
+.record-score {
+  flex: 1;
+  text-align: center;
 }
 
-.logout-btn {
-  width: 100%;
-  min-height: 92rpx;
-  border-radius: 999rpx;
-  background: #ffffff;
-  color: #dc2626;
-  border: 2rpx solid rgba(220, 38, 38, 0.28);
+.score-number {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0891B2;
+}
+
+.score-unit {
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+
+.record-risk {
+  flex: 1;
+  text-align: right;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+/* 弹窗样式 */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-container {
+  width: 85%;
+  max-height: 80vh;
+  background-color: #ffffff;
+  border-radius: 40rpx;
+  overflow: hidden;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32rpx 40rpx;
+  background: linear-gradient(135deg, #0891B2 0%, #0E7490 100%);
+}
+
+.modal-title {
   font-size: 34rpx;
   font-weight: 700;
-  box-shadow: 0 10rpx 18rpx rgba(220, 38, 38, 0.08);
+  color: #ffffff;
+}
+
+.modal-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.modal-close text {
+  font-size: 36rpx;
+  color: #ffffff;
+  font-weight: 300;
+}
+
+.modal-body {
+  max-height: 60vh;
+  padding: 32rpx 40rpx;
+  overflow-y: auto;
+}
+
+/* 得分区域 */
+.modal-score-section {
+  text-align: center;
+  padding: 32rpx 0;
+  background-color: #f0f9ff;
+  border-radius: 32rpx;
+  margin-bottom: 32rpx;
+}
+
+.score-label-tag {
+  font-size: 26rpx;
+  color: #64748b;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.score-value-big {
+  font-size: 72rpx;
+  font-weight: 800;
+  color: #0891B2;
+}
+
+.score-unit-small {
+  font-size: 32rpx;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+/* 列表区块 */
+.modal-list-section {
+  margin-bottom: 32rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 20rpx;
+  padding-left: 8rpx;
+}
+
+/* 训练列表项 */
+.training-list-modal {
+  background-color: #f8fafc;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.training-item-modal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 32rpx;
+  border-bottom: 2rpx solid #e2e8f0;
+}
+
+.training-item-modal:last-child {
+  border-bottom: none;
+}
+
+.training-left {
+  flex: 1;
+}
+
+.training-name-modal {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.training-time-modal {
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+
+.training-right {
+  text-align: right;
+}
+
+.training-score-modal {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0891B2;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.training-status-modal {
+  font-size: 24rpx;
+}
+
+.training-status-modal.completed {
+  color: #16a34a;
+}
+
+.training-status-modal.pending {
+  color: #f97316;
+}
+
+/* 测评列表项 */
+.assessment-list-modal {
+  background-color: #f8fafc;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.assessment-item-modal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 32rpx;
+  border-bottom: 2rpx solid #e2e8f0;
+}
+
+.assessment-item-modal:last-child {
+  border-bottom: none;
+}
+
+.assessment-name-modal {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.assessment-score-modal {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0891B2;
+}
+
+/* 空状态 */
+.empty-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80rpx 0;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-text-modal {
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+/* 家属查看模式样式 */
+.family-profile {
+  min-height: 100vh;
+  background-color: #f0f2f5;
+  padding: 32rpx;
+  padding-bottom: 120rpx;
+}
+
+.family-card {
+  background-color: #ffffff;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+  margin-bottom: 32rpx;
+}
+
+.card-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.family-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.elder-info {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.avatar-wrapper {
+  width: 100rpx;
+  height: 100rpx;
+  background: linear-gradient(135deg, #4A90D9 0%, #2563EB 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.elder-avatar {
+  font-size: 56rpx;
+}
+
+.elder-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.elder-name {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.elder-meta {
+  font-size: 26rpx;
+  color: #64748b;
+}
+
+.relation-badge {
+  background-color: #dbeafe;
+  padding: 12rpx 24rpx;
+  border-radius: 32rpx;
+}
+
+.relation-text {
+  font-size: 26rpx;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.family-divider {
+  height: 2rpx;
+  background-color: #e2e8f0;
+  margin: 24rpx 0;
+}
+
+.family-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-label {
+  font-size: 28rpx;
+  color: #64748b;
+}
+
+.info-value {
+  font-size: 28rpx;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.risk-normal {
+  color: #16a34a;
+}
+
+.risk-mild {
+  color: #f97316;
+}
+
+.risk-moderate {
+  color: #eab308;
+}
+
+.risk-severe {
+  color: #dc2626;
+}
+
+.family-actions {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 32rpx;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx;
+  background-color: #f1f5f9;
+  border-radius: 24rpx;
+}
+
+.action-icon {
+  font-size: 40rpx;
+}
+
+.action-text {
+  font-size: 26rpx;
+  color: #64748b;
+}
+
+.family-menu {
+  background-color: #ffffff;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.menu-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 24rpx;
+}
+
+.menu-grid {
+  display: flex;
+  gap: 32rpx;
+}
+
+.menu-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 32rpx;
+  background-color: #f8fafc;
+  border-radius: 24rpx;
+}
+
+.menu-icon {
+  font-size: 56rpx;
+}
+
+.menu-text {
+  font-size: 28rpx;
+  color: #334155;
 }
 </style>
-

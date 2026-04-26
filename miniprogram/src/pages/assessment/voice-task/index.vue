@@ -62,9 +62,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { api } from '../../../utils/request'
 
 const questionIndex = ref(0)
 const questionId = ref('')
+const sessionId = ref('')
 const taskText = ref('请大声朗读并尝试记忆：苹果、汽车、诚信、丝绸、玫瑰。')
 
 const isRecording = ref(false)
@@ -109,6 +111,9 @@ onLoad((options) => {
   }
   if (options.questionId) {
     questionId.value = options.questionId
+  }
+  if (options.sessionId) {
+    sessionId.value = options.sessionId
   }
   if (options.taskText) {
     taskText.value = decodeURIComponent(options.taskText)
@@ -278,20 +283,26 @@ async function handleSubmit() {
     wx.showToast({ title: '请先录制语音', icon: 'none' })
     return
   }
+  if (!sessionId.value) {
+    wx.showToast({ title: '会话信息缺失，请返回重试', icon: 'none' })
+    return
+  }
 
   uploading.value = true
-  statusMsg.value = '正在保存录音...'
+  statusMsg.value = '正在上传语音...'
   statusType.value = 'info'
 
   try {
+    const uploadResult = await api.uploadSessionAudio(sessionId.value, tempFilePath.value)
     uni.$emit('voiceTaskCompleted', {
       questionIndex: questionIndex.value,
-      filePath: tempFilePath.value,
+      audioUrl: uploadResult?.audio_url || null,
+      objectName: uploadResult?.object_name || null,
       durationSec: seconds.value,
       transcript: '',
     })
 
-    wx.showToast({ title: '语音已保存', icon: 'success', duration: 1200 })
+    wx.showToast({ title: '语音已上传', icon: 'success', duration: 1200 })
 
     setTimeout(() => {
       uni.navigateBack()
@@ -316,7 +327,8 @@ function handleSkip() {
       if (res.confirm) {
         uni.$emit('voiceTaskCompleted', {
           questionIndex: questionIndex.value,
-          filePath: null,
+          audioUrl: null,
+          objectName: null,
           skipped: true,
         })
         uni.navigateBack()

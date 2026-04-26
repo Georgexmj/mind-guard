@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -160,6 +160,59 @@ def list_family_relationships(
         q = q.filter(UserRelationship.family_id == family_id)
     rows = q.order_by(UserRelationship.created_at.desc()).all()
     return [_relation_to_out(row) for row in rows]
+
+
+@router.get("/my-elders", response_model=List[UserOut])
+def list_my_elders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get elders that the current family member is bound to."""
+    if current_user.role != UserRole.family:
+        raise HTTPException(status_code=403, detail="Only family members can access this endpoint")
+    
+    elders = (
+        db.query(User)
+        .join(UserRelationship, UserRelationship.elder_id == User.id)
+        .filter(UserRelationship.family_id == current_user.id)
+        .all()
+    )
+    return elders
+
+
+@router.get("/search", response_model=List[UserOut])
+def search_elder(
+    name: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Search elder users by name (for family member verification flow)."""
+    if not name:
+        raise HTTPException(status_code=400, detail="Name parameter is required")
+    
+    elders = (
+        db.query(User)
+        .filter(User.role == UserRole.elder)
+        .filter(User.name.like(f"%{name}%"))
+        .all()
+    )
+    return elders
+
+
+@router.post("/{elder_id}/verify-idcard")
+def verify_elder_idcard(
+    elder_id: int,
+    id_card: str = Body(..., embed=True),
+    db: Session = Depends(get_db),
+):
+    """Verify elder's ID card for family member to view elder's data."""
+    elder = db.query(User).filter(User.id == elder_id, User.role == UserRole.elder).first()
+    if not elder:
+        raise HTTPException(status_code=404, detail="Elder not found")
+    
+    if elder.id_card == id_card:
+        return {"success": True, "message": "身份验证成功"}
+    else:
+        return {"success": False, "message": "身份证号码不正确"}
 
 
 @router.delete("/family-relationships/{relation_id}", response_model=FamilyUnbindOut)

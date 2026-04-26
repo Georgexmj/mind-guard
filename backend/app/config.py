@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Database
-    DATABASE_URL: str = "mysql+pymysql://cognitive_user:cognitive_pass_2026@localhost:3306/cognitive_db"
+    # Database - Use SQLite for local development
+    DATABASE_URL: str = "sqlite:///./cognitive.db"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     WECHAT_TEMPLATE_ID_ADHERENCE: str = ""
     WECHAT_TEMPLATE_ID_REASSESSMENT: str = ""
     WECHAT_MINIPROGRAM_PAGE: str = "pages/index/index"
-    WECHAT_MOCK_MODE: bool = True
+    WECHAT_MOCK_MODE: bool = False
 
     # Reminder scheduling (Celery Beat)
     CELERY_BEAT_ENABLED: bool = True

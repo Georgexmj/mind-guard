@@ -1,4 +1,4 @@
-name: mindguard
+name: mind-guard
 
 services:
   mysql:

@@ -181,7 +181,30 @@ export const api = {
 
   getResult: (sessionId) => request({ url: `/assessments/sessions/${sessionId}/result` }),
 
-  getSessions: () => request({ url: '/assessments/sessions' }),
+  getSessions: (params = {}) => {
+    const query = Object.entries(params)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      .join('&')
+    const suffix = query ? `?${query}` : ''
+    return request({ url: `/assessments/sessions${suffix}` })
+  },
+
+  getMyElders: () => request({ url: '/users/my-elders' }),
+
+  searchElder: (name) => request({ url: `/users/search?name=${encodeURIComponent(name)}` }),
+
+  verifyElderIdCard: (elderId, idCard) =>
+    request({
+      url: `/users/${elderId}/verify-idcard`,
+      method: 'POST',
+      data: { id_card: idCard },
+    }),
+
+  getElderSessions: (elderId) => request({ url: `/assessments/sessions?elder_id=${elderId}` }),
+
+  getElderSessionResult: (_elderId, sessionId) =>
+    request({ url: `/assessments/sessions/${sessionId}/result` }),
 
   getTaskStatus: (taskId) => request({ url: `/assessments/tasks/${taskId}` }),
 
@@ -229,4 +252,8 @@ export const api = {
       method: 'POST',
       data,
     }),
+
+  getTrainingCourses: () => request({ url: '/training/courses' }),
+
+  getTrainingCourseQuestions: (courseId) => request({ url: `/training/courses/${courseId}/questions` }),
 }

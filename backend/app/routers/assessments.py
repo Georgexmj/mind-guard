@@ -119,10 +119,45 @@ def create_session(
 def list_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    elder_id: Optional[int] = Query(None),
 ):
     if current_user.role in (UserRole.admin, UserRole.doctor):
         return db.query(AssessmentSession).order_by(AssessmentSession.created_at.desc()).all()
-    return assessment_service.get_sessions_by_user(db, current_user.id)
+    
+    if current_user.role == UserRole.elder:
+        return assessment_service.get_sessions_by_user(db, current_user.id)
+    
+    if current_user.role == UserRole.family:
+        if elder_id is not None:
+            relation = (
+                db.query(UserRelationship)
+                .filter(
+                    UserRelationship.family_id == current_user.id,
+                    UserRelationship.elder_id == elder_id,
+                )
+                .first()
+            )
+            if not relation:
+                raise HTTPException(status_code=403, detail="Family member has no access to this elder")
+            return assessment_service.get_sessions_by_user(db, elder_id)
+        
+        elders = (
+            db.query(User)
+            .join(UserRelationship, UserRelationship.elder_id == User.id)
+            .filter(UserRelationship.family_id == current_user.id)
+            .all()
+        )
+        elder_ids = [e.id for e in elders]
+        if not elder_ids:
+            return []
+        return (
+            db.query(AssessmentSession)
+            .filter(AssessmentSession.user_id.in_(elder_ids))
+            .order_by(AssessmentSession.created_at.desc())
+            .all()
+        )
+    
+    return []
 
 
 @router.get("/sessions/{session_id}", response_model=SessionOut)

@@ -37,6 +37,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     uuid = Column(String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()), index=True)
     phone = Column(String(20), unique=True, nullable=False, index=True)
+    id_card = Column(String(18), unique=True, index=True, nullable=True)
     name = Column(String(100), nullable=False)
     birth_date = Column(Date, nullable=True)
     gender = Column(String(10), nullable=True)

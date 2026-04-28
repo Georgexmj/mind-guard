@@ -1,105 +1,156 @@
-﻿{
+{
   "pages": [
     {
       "path": "pages/login/index",
       "style": {
         "navigationBarTitleText": "登录",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/register/index",
+      "style": {
+        "navigationBarTitleText": "注册",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "忆守心安",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/child-bind/index",
+      "style": {
+        "navigationBarTitleText": "子女关联",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/assessment/start/index",
       "style": {
         "navigationBarTitleText": "评估说明",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/assessment/question/index",
       "style": {
         "navigationBarTitleText": "认知评估",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/assessment/voice-task/index",
       "style": {
         "navigationBarTitleText": "语音任务",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/assessment/clock-draw/index",
       "style": {
         "navigationBarTitleText": "时钟绘制",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/result/index",
       "style": {
         "navigationBarTitleText": "评估结果",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/intervention/top5/index",
       "style": {
-        "navigationBarTitleText": "干预推荐 Top-5",
-        "navigationBarBackgroundColor": "#0f766e",
-        "navigationBarTextStyle": "white"
+        "navigationBarTitleText": "康复训练",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/intervention/training/index",
+      "style": {
+        "navigationBarTitleText": "训练",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的",
-        "navigationBarBackgroundColor": "#0f766e",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/index",
+      "style": {
+        "navigationBarTitleText": "设置",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/forgot/index",
+      "style": {
+        "navigationBarTitleText": "忘记密码",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/elder-detail/index",
+      "style": {
+        "navigationBarTitleText": "老人详情",
+        "navigationBarBackgroundColor": "#4A90D9",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/notifications/index",
+      "style": {
+        "navigationBarTitleText": "通知消息",
+        "navigationBarBackgroundColor": "#4A90D9",
         "navigationBarTextStyle": "white"
       }
     }
   ],
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#0f766e",
+    "selectedColor": "#d97706",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "static/icons/home.png",
-        "selectedIconPath": "static/icons/home-active.png"
+        "text": "首页"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "我的",
-        "iconPath": "static/icons/profile.png",
-        "selectedIconPath": "static/icons/profile-active.png"
+        "text": "个人中心"
       }
     ]
   },
   "globalStyle": {
-    "navigationBarTextStyle": "white",
+    "navigationBarTextStyle": "black",
     "navigationBarTitleText": "忆守心安",
-    "navigationBarBackgroundColor": "#0f766e",
+    "navigationBarBackgroundColor": "#FEF7E8",
     "backgroundColor": "#F5F5F5",
-    "backgroundTextStyle": "light",
-    "fontSize": "36rpx"
+    "backgroundTextStyle": "light"
   }
 }
-

@@ -1,18 +1,46 @@
-<template>
-  <view />
-</template>
-
 <script setup>
-import { onLaunch } from '@dcloudio/uni-app'
-import { useAuthStore } from './store/auth'
+import { onLaunch, onShow } from '@dcloudio/uni-app'
+import { useAuthStore } from '@/store/auth'
+
+const fontSizeMap = {
+  small: 24,
+  medium: 28,
+  large: 32,
+  xlarge: 36
+}
 
 onLaunch(() => {
+  console.log('App Launch')
   const auth = useAuthStore()
   auth.init()
 })
+
+onShow(() => {
+  // 页面显示时应用字体大小
+  applyFontSize()
+})
+
+const applyFontSize = () => {
+  try {
+    const settings = uni.getStorageSync('app_settings') || {}
+    const fontSize = settings.fontSize || 'medium'
+    const fontSizeValue = fontSizeMap[fontSize] || 28
+    
+    // 设置全局变量
+    globalThis.currentFontSize = fontSize
+    globalThis.currentFontSizeValue = fontSizeValue
+    
+    console.log('字体大小已应用:', fontSize, fontSizeValue)
+  } catch (e) {
+    console.error('应用字体大小失败', e)
+  }
+}
+
+uni.$applyFontSize = applyFontSize
+uni.$fontSizeMap = fontSizeMap
 </script>
 
-<style>
+<style lang="scss">
 :root {
   --mg-bg: #ecf4f8;
   --mg-bg-elevated: #f7fcff;
@@ -31,42 +59,21 @@ onLaunch(() => {
 }
 
 page {
-  background:
-    radial-gradient(circle at 4% -20%, rgba(14, 122, 111, 0.14), transparent 54%),
-    radial-gradient(circle at 98% 0%, rgba(2, 125, 189, 0.1), transparent 52%),
-    var(--mg-bg);
+  background: linear-gradient(180deg, #FFF9E8 0%, #FEF7E8 30%, #FEF7E8 100%);
   color: var(--mg-text-primary);
-  font-size: 34rpx;
   line-height: 1.72;
+  min-height: 100vh;
 }
 
-view,
-text,
-label,
-button,
-input,
-textarea {
+view, text, label, button, input, textarea {
   box-sizing: border-box;
-}
-
-text,
-label {
-  color: var(--mg-text-primary);
-  line-height: 1.72;
 }
 
 button {
   min-height: var(--mg-touch-min);
   border-radius: 999rpx;
-  font-size: 36rpx;
   font-weight: 700;
   line-height: 1.2;
-}
-
-input,
-textarea {
-  font-size: 34rpx;
-  line-height: 1.4;
 }
 
 .mg-card {
@@ -109,7 +116,6 @@ button:active {
   .mg-card {
     animation: none;
   }
-
   button:active {
     transform: none;
   }

@@ -77,6 +77,7 @@ def seed_users(db, community_id: int) -> None:
         },
         {
             "phone": "13800000003",
+            "id_card": "123456194808151234",
             "name": "李奶奶",
             "gender": "female",
             "birth_date": date(1948, 8, 15),
@@ -100,6 +101,7 @@ def seed_users(db, community_id: int) -> None:
         if user is None:
             user = User(
                 phone=item["phone"],
+                id_card=item.get("id_card"),
                 name=item["name"],
                 gender=item["gender"],
                 birth_date=item["birth_date"],

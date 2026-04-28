@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_login_at  DATETIME NULL,
   created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id_card VARCHAR(18) NULL UNIQUE, --新增的身份证号列
   UNIQUE KEY uk_users_uuid (uuid),
   UNIQUE KEY uk_users_phone (phone),
   INDEX idx_users_role (role),

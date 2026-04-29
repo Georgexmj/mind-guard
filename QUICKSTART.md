@@ -1,100 +1,89 @@
-# MindGuard — 快速启动指南
+# MindGuard 快速启动指南
 
-本文档说明如何在本地快速跑通完整系统（后端 + Web管理端 + 数据库基础设施）。
-
----
+本文说明如何在本地跑通后端、Web 管理端、小程序与基础设施。
 
 ## 环境要求
 
-| 工具 | 版本要求 | 说明 |
-|------|----------|------|
-| Docker Desktop | 24.0+ | 运行所有基础设施 |
-| Python | 3.11+ | 后端开发模式 |
-| Node.js | 20+ | Web Admin 开发模式 |
-| 微信开发者工具 | 最新版 | 小程序调试 |
+| 工具 | 建议版本 | 用途 |
+| --- | --- | --- |
+| Docker Desktop | 24+ | 一键启动 MySQL、Redis、MinIO、后端、Web、Nginx |
+| Python | 3.11+ | 后端本地开发 |
+| Node.js | 20+ | Web 管理端与小程序构建 |
+| 微信开发者工具 | 最新版 | 小程序调试与上传 |
 
----
-
-## 方式一：Docker 一键启动（推荐演示使用）
+## 方式一：Docker 一键启动
 
 ```bash
-# 1. 进入 infrastructure 目录
-cd infrastructure
-
-# 2. 启动所有服务（首次启动会构建镜像，约3~5分钟）
-docker compose up -d
-
-# 3. 查看所有服务状态
+cp .env.example .env
+docker compose up -d --build
 docker compose ps
-
-# 4. 查看后端日志（等待 "Application startup complete" 字样）
 docker compose logs -f backend
 ```
 
-启动完成后访问：
-- **Web 管理端**：http://localhost:30000 （admin/doctor 账号）
-- **后端 API 文档**：http://localhost:30001/docs （Swagger UI）
-- **MinIO 控制台**：http://localhost:30005 （cognitive_admin / cognitive_minio_2026）
+启动后访问：
 
-停止所有服务：
+| 服务 | 默认地址 |
+| --- | --- |
+| Web 管理端 | http://localhost:30000 |
+| 后端 Swagger | http://localhost:8000/docs |
+| MinIO Console | http://localhost:9001 |
+
+停止服务：
+
 ```bash
 docker compose down
 ```
 
-清除数据重新初始化：
+清空数据卷后重建：
+
 ```bash
-docker compose down -v   # 加 -v 会删除所有数据卷
-docker compose up -d
+docker compose down -v
+docker compose up -d --build
 ```
 
----
+## 方式二：本地开发模式
 
-## 方式二：本地开发模式（推荐开发调试）
-
-### 步骤 1：启动基础设施（只启动数据库等，不含应用）
+### 1. 启动基础设施
 
 ```bash
-cd infrastructure
+cp .env.example .env
 docker compose up -d mysql redis minio influxdb mongodb
 ```
 
-等待约 20 秒让 MySQL 完全初始化。
-
-### 步骤 2：启动后端
+### 2. 启动后端
 
 ```bash
 cd backend
-
-# 安装依赖（建议用虚拟环境）
 python -m venv .venv
-# Windows
 .venv\Scripts\activate
-# Mac/Linux
-source .venv/bin/activate
-
 pip install -r requirements.txt
-
-# 初始化数据库并插入测试数据
 python -m app.initial_data
-
-# 启动 FastAPI（热重载）
 uvicorn app.main:app --reload --port 8000
 ```
 
-后端启动后：http://localhost:8000/docs
+macOS/Linux 激活虚拟环境使用：
 
-### 步骤 3：启动 Celery Worker（AI 异步分析）
-
-新开一个终端：
 ```bash
-cd backend
-# 激活同一个虚拟环境
-source .venv/bin/activate  # 或 Windows: .venv\Scripts\activate
-
-celery -A app.tasks.celery_app worker --loglevel=info
+source .venv/bin/activate
 ```
 
-### 步骤 4：启动 Web Admin
+后端文档：http://localhost:8000/docs
+
+### 3. 启动 Celery Worker
+
+```bash
+cd backend
+.venv\Scripts\activate
+celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2 -Q ai_analysis,celery
+```
+
+如需启用定时提醒任务：
+
+```bash
+celery -A app.tasks.celery_app beat --loglevel=info
+```
+
+### 4. 启动 Web 管理端
 
 ```bash
 cd web-admin
@@ -104,112 +93,67 @@ npm run dev
 
 访问：http://localhost:5173
 
-### 步骤 5：启动小程序（微信开发者工具）
+### 5. 启动微信小程序
 
-1. 打开微信开发者工具
-2. 导入项目 → 选择 `miniprogram/` 目录
-3. AppID 填写你的微信小程序 AppID（或使用"测试号"）
-4. 在 `miniprogram/utils/request.js` 中将 BASE_URL 改为：
-   ```javascript
-   const BASE_URL = 'http://localhost:8000/api/v1'
-   ```
-5. 点击编译，即可在模拟器中运行
+```bash
+cd miniprogram
+npm install
+npm run dev:mp-weixin
+```
 
----
+然后用微信开发者工具导入 `miniprogram/dist/dev/mp-weixin`。本地联调时在开发者工具中勾选“不校验合法域名”，生产发布时需在微信公众平台配置 HTTPS 合法域名。
 
 ## 演示账号
 
-| 角色 | 手机号 | 密码 | 说明 |
-|------|--------|------|------|
-| 管理员 | 13800000001 | admin123 | 完整权限，可管理所有数据 |
-| 医生 | 13800000002 | doctor123 | 可查看老人评估结果 |
-| 老人 | 13800000003 | elder123 | 小程序端登录，可完成评估 |
+| 角色 | 手机号 | 密码 |
+| --- | --- | --- |
+| 管理员 | `13800000001` | `admin123` |
+| 医生 | `13800000002` | `doctor123` |
+| 老人 | `13800000003` | `elder123` |
 
----
+## AI 推理策略
 
-## 端口一览
-
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| Web Admin | 30000 (Docker) / 5173 (Dev) | React 管理后台 |
-| FastAPI | 30001 (Docker) / 8000 (Dev) | REST API + Swagger |
-| MySQL | 30002 (Docker 映射) | 主数据库 |
-| Redis | 30003 (Docker 映射) | 缓存 + 消息队列 |
-| MinIO API | 30004 (Docker 映射) | 文件存储 |
-| MinIO Console | 30005 (Docker 映射) | 存储管理界面 |
-| InfluxDB | 30006 (Docker 映射) | 时序数据库 |
-| MongoDB | 30007 (Docker 映射) | 特征存储 |
-
----
-
-## 完整评估流程演示
-
-1. **小程序端（老人角色）**：
-   - 用 13800000003 / elder123 登录
-   - 点击"开始认知评估"
-   - 完成 15 道题（包含选择题、语音题、时钟绘制）
-   - 提交后等待 AI 分析（约 5~10 秒，Mock AI）
-   - 查看评估报告（六维雷达图 + 风险评级）
-
-2. **Web Admin（医生/管理员角色）**：
-   - 用 13800000002 / doctor123 登录 http://localhost:30000
-   - 仪表盘查看整体统计
-   - 老人管理 → 查看老人列表
-   - 评估管理 → 查看最新评估结果（包含认知雷达图）
-
----
-
-## 常见问题
-
-**Q: docker compose up 报错 "port already in use"**
-```bash
-# 检查占用端口的进程（以30002为例）
-netstat -ano | findstr 30002   # Windows
-lsof -i :30002                 # Mac/Linux
-# 停止冲突进程后重试
-```
-
-**Q: 后端报 "Can't connect to MySQL server"**
-```bash
-# 等待MySQL完全启动（约15~20秒），或手动检查
-docker compose logs mysql | tail -20
-# 看到 "ready for connections" 字样才算启动完成
-```
-
-**Q: 小程序报 "request:fail url not in domain list"**
-- 微信开发者工具 → 详情 → 本地设置 → 勾选"不校验合法域名"
-- 或将 `http://localhost:30001`（Docker）或 `http://localhost:8000`（本地开发）添加到小程序后台的 request 合法域名
-
-**Q: Celery Worker 连不上 Redis**
-```bash
-# 确认Redis在运行
-docker compose ps redis
-# 或直接用本地Redis
-redis-cli ping  # 应返回 PONG
-```
-
----
-
-*文档版本：v1.0 | 2026-03*
-
----
-
-## 深度多模态模型开关（新增）
-
-后端新增三种 AI 推理策略（通过环境变量配置）：
+后端通过环境变量控制推理策略：
 
 ```env
-AI_MODEL_STRATEGY=rule      # 仅规则模型（稳定兜底）
-AI_MODEL_STRATEGY=deep      # 仅深度模型（需 checkpoint）
-AI_MODEL_STRATEGY=hybrid    # 规则 + 深度融合（推荐）
-
+AI_MODEL_STRATEGY=hybrid
 DEEP_MODEL_CHECKPOINT=models/deep_multimodal_fusion.pt
 DEEP_MODEL_DEVICE=cpu
 DEEP_MODEL_ALLOW_RANDOM_INIT=false
 DEEP_MODEL_BLEND_ALPHA=0.65
 ```
 
-说明：
-- 当 `deep/hybrid` 但 checkpoint 不存在时，系统会自动回退到规则模型，评估流程不中断。
-- 训练脚本：`backend/scripts/train_deep_multimodal.py`
-- 完整改造文档：`docs/开发/深度多模态改造说明.md`
+取值说明：
+
+| 策略 | 说明 |
+| --- | --- |
+| `rule` | 只使用规则模型，适合最稳演示 |
+| `deep` | 只使用深度模型，要求 checkpoint 可用 |
+| `hybrid` | 规则 + 深度融合，当前推荐 |
+
+当深度模型不可用时，系统会回退到规则模型，评估流程不会中断。
+
+## 常见问题
+
+**端口被占用**
+
+修改 `.env` 中的 `NGINX_HTTP_PORT`、`BACKEND_PORT`、`MYSQL_PORT` 等端口后重新启动。
+
+**后端连不上数据库**
+
+先确认 MySQL 健康状态：
+
+```bash
+docker compose ps mysql
+docker compose logs mysql
+```
+
+**Web 能打开但接口失败**
+
+开发模式下 Web 请求 `/api/v1`，需要 Vite 或 Nginx 代理到后端；Docker 模式由 Nginx 统一代理，本地开发可直接访问后端 Swagger 排查接口。
+
+**小程序请求失败**
+
+开发者工具勾选“不校验合法域名”；生产环境在微信公众平台把 `https://api.yishouxinan.site` 或实际 API 域名加入 request 合法域名。
+
+*文档修订：2026-04-29*

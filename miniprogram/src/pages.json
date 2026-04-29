@@ -9,25 +9,9 @@
       }
     },
     {
-      "path": "pages/register/index",
-      "style": {
-        "navigationBarTitleText": "注册",
-        "navigationBarBackgroundColor": "#FEF7E8",
-        "navigationBarTextStyle": "black"
-      }
-    },
-    {
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "忆守心安",
-        "navigationBarBackgroundColor": "#FEF7E8",
-        "navigationBarTextStyle": "black"
-      }
-    },
-    {
-      "path": "pages/child-bind/index",
-      "style": {
-        "navigationBarTitleText": "子女关联",
         "navigationBarBackgroundColor": "#FEF7E8",
         "navigationBarTextStyle": "black"
       }
@@ -82,51 +66,11 @@
       }
     },
     {
-      "path": "pages/intervention/training/index",
-      "style": {
-        "navigationBarTitleText": "训练",
-        "navigationBarBackgroundColor": "#FEF7E8",
-        "navigationBarTextStyle": "black"
-      }
-    },
-    {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的",
         "navigationBarBackgroundColor": "#FEF7E8",
         "navigationBarTextStyle": "black"
-      }
-    },
-    {
-      "path": "pages/settings/index",
-      "style": {
-        "navigationBarTitleText": "设置",
-        "navigationBarBackgroundColor": "#FEF7E8",
-        "navigationBarTextStyle": "black"
-      }
-    },
-    {
-      "path": "pages/forgot/index",
-      "style": {
-        "navigationBarTitleText": "忘记密码",
-        "navigationBarBackgroundColor": "#FEF7E8",
-        "navigationBarTextStyle": "black"
-      }
-    },
-    {
-      "path": "pages/elder-detail/index",
-      "style": {
-        "navigationBarTitleText": "老人详情",
-        "navigationBarBackgroundColor": "#4A90D9",
-        "navigationBarTextStyle": "white"
-      }
-    },
-    {
-      "path": "pages/notifications/index",
-      "style": {
-        "navigationBarTitleText": "通知消息",
-        "navigationBarBackgroundColor": "#4A90D9",
-        "navigationBarTextStyle": "white"
       }
     }
   ],
@@ -146,6 +90,7 @@
       }
     ]
   },
+  "subPackages": [],
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "忆守心安",

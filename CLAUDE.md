@@ -8,7 +8,8 @@
 backend/          — FastAPI 后端（Python 3.11）
 web-admin/        — 管理端 Web 应用（React 18 + TypeScript）
 miniprogram/      — 微信小程序老人端（UniApp + Vue 3）
-infrastructure/   — 开发环境 Docker Compose + Nginx 配置 + MySQL 初始化
+infrastructure/   — 辅助 Docker Compose + MySQL 初始化脚本
+nginx/            — 开发/生产 Nginx 配置与证书目录
 data/             — 训练数据、题库种子数据
 docs/             — 项目文档（架构、需求、部署、商业计划）
 ```
@@ -34,7 +35,7 @@ docs/             — 项目文档（架构、需求、部署、商业计划）
 ### 1. 基础设施
 
 ```bash
-cd infrastructure && docker compose up -d mysql redis minio
+docker compose up -d mysql redis minio influxdb mongodb
 ```
 
 ### 2. 后端
@@ -51,7 +52,7 @@ uvicorn app.main:app --reload --port 8000
 
 ```bash
 cd backend && source .venv/bin/activate
-celery -A app.tasks.celery_app worker --loglevel=info
+celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2 -Q ai_analysis,celery
 ```
 
 ### 4. 管理端
@@ -159,14 +160,14 @@ docker compose up -d --build
 
 ## 部署
 
-两套 Docker Compose 配置：
+Docker Compose 配置：
 
 | 文件 | 用途 | 特点 |
 |------|------|------|
-| `/docker-compose.yml` | 生产/演示 | 读 `.env` 文件，端口 30000-30007 |
-| `/infrastructure/docker-compose.yml` | 开发 | 硬编码凭据，标准端口，后端 volume 挂载 + --reload |
+| `/docker-compose.yml` | 当前主要入口 | 读 `.env` 文件，包含 MySQL、Redis、MinIO、InfluxDB、MongoDB、backend、Celery、web_admin、nginx |
+| `/infrastructure/docker-compose.yml` | 辅助参考 | 基础设施与初始化脚本参考，实际部署优先使用根目录 compose |
 
-生产端口映射：Web 30000、API 30001、MySQL 30002、Redis 30003、MinIO 30004/30005、InfluxDB 30006、MongoDB 30007
+默认端口以 `.env.example` 为准：Web/Nginx 30000、API 8000、MySQL 3306、Redis 6379、MinIO 9000/9001、InfluxDB 8086、MongoDB 27017。生产环境可在 `.env` 中改为 80/443 等正式端口。
 
 ## 注意事项
 

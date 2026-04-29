@@ -1,1 +1,3 @@
-from .relationship import FamilyRelationship
+from .user import UserRelationship
+
+__all__ = ["UserRelationship"]

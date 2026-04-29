@@ -372,11 +372,11 @@ function onDailyCheckin() {
 }
 
 function goToAssessment() {
-  uni.switchTab({ url: '/pages/assessment/start/index' })
+  uni.navigateTo({ url: '/pages/assessment/start/index' })
 }
 
 function goToInterventionTop5() {
-  uni.switchTab({ url: '/pages/intervention/top5/index' })
+  uni.navigateTo({ url: '/pages/intervention/top5/index' })
 }
 
 function goToProfile() {

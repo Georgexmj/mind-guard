@@ -423,7 +423,10 @@ const onAssessmentTap = (index) => {
 }
 
 const goToSettings = () => {
-  uni.navigateTo({ url: '/pages/settings/index' })
+  uni.showToast({
+    title: '设置功能建设中',
+    icon: 'none'
+  })
 }
 
 const goToElderDetail = () => {
@@ -872,6 +875,60 @@ onShow(() => {
   text-align: right;
   font-size: 24rpx;
   font-weight: 500;
+}
+
+/* 设置入口 */
+.settings-card {
+  display: flex;
+  align-items: center;
+  background-color: #ffffff;
+  margin: 0 32rpx 128rpx;
+  padding: 30rpx 32rpx;
+  border-radius: 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.06);
+}
+
+.settings-card:active {
+  transform: scale(0.98);
+  background-color: #f8fafc;
+}
+
+.settings-icon {
+  width: 84rpx;
+  height: 84rpx;
+  margin-right: 24rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #e0f2fe 0%, #cffafe 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42rpx;
+}
+
+.settings-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.settings-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.settings-desc {
+  font-size: 26rpx;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.settings-arrow {
+  margin-left: 24rpx;
+  font-size: 44rpx;
+  color: #94a3b8;
+  line-height: 1;
 }
 
 /* 弹窗样式 */

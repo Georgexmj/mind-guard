@@ -1,0 +1,71 @@
+﻿<svg width="720" height="540" viewBox="0 0 720 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="92" y1="58" x2="612" y2="498" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2E2"/>
+      <stop offset="1" stop-color="#EAF2FF"/>
+    </linearGradient>
+    <linearGradient id="card" x1="205" y1="125" x2="500" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F7FAFF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F6A04B"/>
+      <stop offset="1" stop-color="#EA8427"/>
+    </linearGradient>
+    <linearGradient id="brain" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#4E8CF5"/>
+      <stop offset="1" stop-color="#6EA8FF"/>
+    </linearGradient>
+    <filter id="soft" x="110" y="70" width="500" height="420" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="14"/>
+      <feGaussianBlur stdDeviation="16"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.106 0 0 0 0 0.16 0 0 0 0 0.27 0 0 0 0.12 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect x="74" y="54" width="572" height="432" rx="36" fill="url(#bg)"/>
+  <circle cx="153" cy="135" r="42" fill="#FFFFFF" fill-opacity="0.72"/>
+  <circle cx="586" cy="104" r="56" fill="#FFFFFF" fill-opacity="0.64"/>
+  <circle cx="606" cy="420" r="62" fill="#F9E5CC" fill-opacity="0.75"/>
+
+  <g filter="url(#soft)">
+    <rect x="144" y="92" width="432" height="360" rx="28" fill="url(#card)"/>
+  </g>
+
+  <rect x="178" y="128" width="148" height="44" rx="14" fill="#EDF3FF"/>
+  <rect x="188" y="141" width="66" height="8" rx="4" fill="#87A9E8"/>
+  <rect x="188" y="155" width="48" height="8" rx="4" fill="#B0C4EA"/>
+
+  <rect x="394" y="128" width="148" height="44" rx="14" fill="#FFF2E5"/>
+  <path d="M426 150h20" stroke="#EC8B31" stroke-width="4" stroke-linecap="round"/>
+  <path d="M436 140v20" stroke="#EC8B31" stroke-width="4" stroke-linecap="round"/>
+  <path d="M456 150h46" stroke="#F2B173" stroke-width="6" stroke-linecap="round"/>
+
+  <circle cx="360" cy="270" r="90" fill="white" stroke="#E3EAF8" stroke-width="2"/>
+  <path d="M330 222c-21 0-36 15-36 35 0 12 5 21 13 27-8 19 5 35 27 35h52c22 0 35-16 27-35 8-6 13-15 13-27 0-20-15-35-36-35-11 0-20 4-26 10-6-6-15-10-26-10z" fill="url(#brain)"/>
+  <path d="M360 230v82" stroke="#EAF2FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M332 248c10 8 10 18 0 26" stroke="#D8E9FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M388 248c-10 8-10 18 0 26" stroke="#D8E9FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M328 282h64" stroke="#D8E9FF" stroke-width="4" stroke-linecap="round"/>
+
+  <rect x="210" y="355" width="300" height="62" rx="16" fill="#F6F9FF"/>
+  <rect x="232" y="377" width="170" height="10" rx="5" fill="#B2C4E9"/>
+  <rect x="232" y="395" width="115" height="8" rx="4" fill="#C9D6EF"/>
+  <rect x="420" y="370" width="68" height="32" rx="12" fill="url(#accent)"/>
+  <path d="M442 386h24" stroke="white" stroke-width="4" stroke-linecap="round"/>
+
+  <path d="M270 252l22 18" stroke="#F3A65A" stroke-width="4" stroke-linecap="round"/>
+  <path d="M450 252l-22 18" stroke="#7EA8F6" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="270" cy="252" r="8" fill="#F3A65A"/>
+  <circle cx="450" cy="252" r="8" fill="#7EA8F6"/>
+
+  <rect x="176" y="198" width="84" height="36" rx="12" fill="#FFFFFF"/>
+  <path d="M198 216h40" stroke="#A6B6D8" stroke-width="6" stroke-linecap="round"/>
+
+  <rect x="460" y="198" width="84" height="36" rx="12" fill="#FFFFFF"/>
+  <path d="M482 216h40" stroke="#F2B173" stroke-width="6" stroke-linecap="round"/>
+</svg>

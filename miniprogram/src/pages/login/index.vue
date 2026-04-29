@@ -61,21 +61,6 @@
         </view>
       </view>
 
-      <!-- 演示账号区块（单独分开，增加间距） -->
-      <view class="demo-section">
-        <view class="demo">
-          <view class="demo-line"></view>
-          <view class="demo-label">演示账号</view>
-          <view class="demo-line"></view>
-        </view>
-        <view class="demo-card" @click="quickLogin">
-          <view class="demo-avatar">李</view>
-          <view class="demo-info">
-            <view class="demo-name">李奶奶</view>
-            <view class="demo-desc">点击一键登录体验</view>
-          </view>
-        </view>
-      </view>
     </block>
 
     <!-- 子女查看表单 - 三步流程 -->
@@ -276,13 +261,6 @@ const handleLogin = () => {
   })
 }
 
-// 演示账号一键登录（使用初始数据中的测试账号）
-const quickLogin = () => {
-  // 使用身份证号登录（李奶奶），密码：elder123
-  idCardForLogin.value = '123456194808151234'
-  password.value = 'elder123'
-  handleLogin()
-}
 
 // 子女登录处理（使用手机号 + 密码）
 const handleChildLogin = () => {
@@ -328,12 +306,6 @@ const handleChildLogin = () => {
   })
 }
 
-// 子女演示账号一键登录
-const quickChildLogin = () => {
-  childPhone.value = '13800000004'
-  childPassword.value = 'family123'
-  handleChildLogin()
-}
 
 // 搜索老人
 const searchElder = async () => {
@@ -426,6 +398,12 @@ onMounted(() => {
   }
   const rememberedIdCard = uni.getStorageSync('remembered_id_card')
   const rememberedPassword = uni.getStorageSync('remembered_password')
+  if (rememberedIdCard === '123456194808151234' || rememberedPassword === 'elder123') {
+    uni.removeStorageSync('remembered_id_card')
+    uni.removeStorageSync('remembered_password')
+    rememberPwd.value = false
+    return
+  }
   if (rememberedIdCard && rememberedPassword) {
     idCardForLogin.value = rememberedIdCard
     password.value = rememberedPassword
@@ -654,74 +632,6 @@ onMounted(() => {
   margin-left: 12rpx;
 }
 
-/* 演示账号区块单独分开，增加上边距 */
-.demo-section {
-  margin-top: 40rpx;
-}
-
-.demo {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  margin-bottom: 32rpx;
-}
-
-.demo-line {
-  flex: 1;
-  height: 1px;
-  background: #E8D8C8;
-}
-
-.demo-label {
-  font-size: 24rpx;
-  color: #C09060;
-}
-
-.demo-card {
-  background: white;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
-}
-
-.demo-card:active {
-  background: #FFF7EE;
-}
-
-.demo-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  background: #F5E0C8;
-  border-radius: 50%;
-  text-align: center;
-  line-height: 80rpx;
-  font-size: 40rpx;
-  font-weight: 500;
-  color: #B45F2A;
-}
-
-.demo-info {
-  flex: 1;
-}
-
-.demo-name {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #5A3A2A;
-  margin-bottom: 6rpx;
-}
-
-.demo-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #C09060;
-}
-
-/* 子女查看表单样式 */
 .child-form .input-item {
   margin-bottom: 36rpx;
 }

@@ -55,10 +55,10 @@ docker compose logs -f backend
 
 ### 3.1 访问地址
 
-- Web 管理端：`http://localhost:30000`（若改过 `WEB_PORT`，则为对应端口）
-- 后端 Swagger：`http://localhost:30001/docs`
-- MinIO 控制台：`http://localhost:30005`
-- InfluxDB：`http://localhost:30006`
+- Web 管理端：`http://localhost:30000`（由 `NGINX_HTTP_PORT` 控制）
+- 后端 Swagger：`http://localhost:8000/docs`（由 `BACKEND_PORT` 控制）
+- MinIO 控制台：`http://localhost:9001`（由 `MINIO_CONSOLE_PORT` 控制）
+- InfluxDB：`http://localhost:8086`（由 `INFLUXDB_PORT` 控制）
 
 ### 3.2 演示账号（由种子数据自动创建）
 
@@ -102,14 +102,17 @@ docker compose up -d --build
 
 可在根目录 `.env` 中覆盖以下常用变量：
 
-- `WEB_PORT`（默认 `30000`）
-- `BACKEND_PORT`（默认 `30001`）
-- `MYSQL_PORT`（默认 `30002`）
-- `REDIS_PORT`（默认 `30003`）
-- `MINIO_API_PORT`（默认 `30004`）
-- `MINIO_CONSOLE_PORT`（默认 `30005`）
+- `NGINX_HTTP_PORT`（默认 `30000`）
+- `NGINX_HTTPS_PORT`（默认 `30443`）
+- `BACKEND_PORT`（默认 `8000`）
+- `MYSQL_PORT`（默认 `3306`）
+- `REDIS_PORT`（默认 `6379`）
+- `MINIO_API_PORT`（默认 `9000`）
+- `MINIO_CONSOLE_PORT`（默认 `9001`）
+- `INFLUXDB_PORT`（默认 `8086`）
+- `MONGODB_PORT`（默认 `27017`）
 
-如果遇到端口占用，把左侧端口改为未占用端口即可（例如 `WEB_PORT=30010`）。
+如果遇到端口占用，把左侧端口改为未占用端口即可（例如 `NGINX_HTTP_PORT=30010`）。
 
 ## 6. 常见问题排查
 
@@ -142,13 +145,13 @@ docker compose restart backend
 排查顺序：
 
 1. `docker compose ps` 看 `backend` 是否 `running/healthy`
-2. 打开 `http://localhost:30001/health` 检查后端健康状态
+2. 打开 `http://localhost:8000/health` 检查后端健康状态
 3. 查看 `backend` 与 `web_admin` 日志是否有 502/连接错误
 
 ## 7. 生产部署建议
 
 - 必须修改 `.env` 中所有默认密码与 `SECRET_KEY`
-- 建议将 `WEB_PORT` 放到 Nginx/网关后面并启用 HTTPS
+- 建议只暴露 Nginx 80/443，后端、数据库和对象存储仅允许内网访问
 - 定期备份 MySQL 与 MinIO 数据卷
 - 资源紧张时可先关闭非核心组件（InfluxDB/MongoDB）
 
@@ -158,23 +161,14 @@ docker compose restart backend
 - 为避免与当前后端 ORM 模型冲突，本一键部署流程不依赖 `infrastructure/mysql/init.sql`。
 - 后端容器启动时会执行 `python -m app.initial_data`，自动建表并初始化演示数据。
 
-## 9. Nginx 环境切换
-当前项目提供两套 Nginx 配置文件：
+## 9. Nginx 配置说明
+当前项目提供多套 Nginx 配置文件：
 
 - 开发环境：`nginx/nginx.dev.conf`
 - 生产环境：`nginx/nginx.prod.conf`
+- 当前 Compose 挂载入口：`nginx/nginx.conf`
 
-通过根目录 `.env` 中的 `NGINX_CONF_FILE` 选择加载哪一套：
-
-```env
-NGINX_CONF_FILE=nginx.dev.conf
-```
-
-生产环境改为：
-
-```env
-NGINX_CONF_FILE=nginx.prod.conf
-```
+根目录 `docker-compose.yml` 当前直接挂载 `./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro`，因此切换开发/生产配置时需要修改 compose 挂载项，或将目标配置内容同步到 `nginx/nginx.conf` 后重建 nginx。
 
 ## 10. 生产环境执行示例
 在生产服务器上，建议在项目根目录 `.env` 中至少设置：
@@ -185,15 +179,11 @@ NGINX_HTTP_PORT=80
 NGINX_HTTPS_PORT=443
 ```
 
-然后确认以下证书文件已存在：
+然后确认 compose 挂载的证书目录与 `nginx/nginx.conf` 中的证书路径一致。当前仓库已有按域名拆分的证书目录，例如：
 
 ```text
-nginx/zhouchao5563.online_nginx/zhouchao5563.online_bundle.pem
-nginx/zhouchao5563.online_nginx/zhouchao5563.online.key
-nginx/admin.zhouchao5563.online_nginx/admin.zhouchao5563.online_bundle.pem
-nginx/admin.zhouchao5563.online_nginx/admin.zhouchao5563.online.key
-nginx/api.zhouchao5563.online_nginx/api.zhouchao5563.online_bundle.pem
-nginx/api.zhouchao5563.online_nginx/api.zhouchao5563.online.key
+nginx/admin.yishouxinan.site_nginx/
+nginx/api.yishouxinan.site_nginx/
 ```
 
 最后在项目根目录执行：

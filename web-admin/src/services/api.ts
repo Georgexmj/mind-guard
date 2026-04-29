@@ -105,7 +105,13 @@ async function fetchUserList(
 
 // Auth
 export const login = async (phone: string, password: string): Promise<TokenResponse> => {
-  const response = await apiClient.post<TokenResponse>('/auth/login', { phone, password })
+  const form = new URLSearchParams()
+  form.set('username', phone)
+  form.set('password', password)
+
+  const response = await apiClient.post<TokenResponse>('/auth/login', form, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  })
   return response.data
 }
 

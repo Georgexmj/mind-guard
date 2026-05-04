@@ -474,11 +474,11 @@ function toggleProfessional() {
 }
 
 function handleShare() {
-  wx.showShareMenu({
+  uni.showShareMenu({
     withShareTicket: true,
     menus: ['shareAppMessage', 'shareTimeline'],
   })
-  wx.showToast({ title: '请点击右上角进行分享', icon: 'none', duration: 2000 })
+  uni.showToast({ title: '请点击右上角进行分享', icon: 'none', duration: 2000 })
 }
 
 function goHome() {

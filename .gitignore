@@ -45,3 +45,9 @@ temp/
 .env.*
 !.env.example
 backend/.env
+
+# HTTPS certificates / private keys
+nginx/**/*.key
+nginx/**/*.csr
+nginx/**/*.crt
+nginx/**/*.pem

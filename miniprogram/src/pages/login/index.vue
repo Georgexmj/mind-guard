@@ -210,55 +210,48 @@ const toggleRemember = () => {
 }
 
 // 老人登录处理（使用身份证号 + 密码）
-const handleLogin = () => {
+const handleLogin = async () => {
   if (!idCardForLogin.value || !password.value) {
     uni.showToast({ title: '请填写身份证号和密码', icon: 'none' })
     return
   }
   uni.showLoading({ title: '登录中...', mask: true })
-  uni.request({
-    url: 'http://localhost:8000/api/v1/auth/login',
-    method: 'POST',
-    header: { 'content-type': 'application/x-www-form-urlencoded' },
-    data: `username=${encodeURIComponent(idCardForLogin.value)}&password=${encodeURIComponent(password.value)}`,
-    success: (res) => {
-      uni.hideLoading()
-      if (res.statusCode === 200 && res.data.access_token) {
-        const token = res.data.access_token
-        const userData = res.data.user || {}
-        const userInfo = {
-          id_card: idCardForLogin.value,
-          name: userData.name || '用户',
-          role: userData.role || 'elder',
-          full_name: userData.name || '用户'
-        }
-        authStore.setAuth(userInfo, token)
-        if (rememberPwd.value) {
-          uni.setStorageSync('remembered_id_card', idCardForLogin.value)
-          uni.setStorageSync('remembered_password', password.value)
-        } else {
-          uni.removeStorageSync('remembered_id_card')
-          uni.removeStorageSync('remembered_password')
-        }
-        uni.showToast({ title: '登录成功', icon: 'success' })
-        setTimeout(() => {
-          uni.switchTab({ url: '/pages/index/index' })
-        }, 500)
-      } else {
-        uni.showToast({ title: res.data.message || res.data.detail || '登录失败', icon: 'none' })
+  try {
+    const res = await api.login(idCardForLogin.value, password.value)
+    uni.hideLoading()
+    if (res.access_token) {
+      const token = res.access_token
+      const userData = res.user || {}
+      const userInfo = {
+        id_card: idCardForLogin.value,
+        name: userData.name || '用户',
+        role: userData.role || 'elder',
+        full_name: userData.name || '用户'
       }
-    },
-    fail: (err) => {
-    uni.hideLoading();
-    console.error('login error', err);
-    // 确保 title 是字符串
-    let errorMsg = '网络错误，请检查后端服务';
-    if (err.errMsg && typeof err.errMsg === 'string') {
-        errorMsg = err.errMsg;
+      authStore.setAuth(userInfo, token)
+      if (rememberPwd.value) {
+        uni.setStorageSync('remembered_id_card', idCardForLogin.value)
+        uni.setStorageSync('remembered_password', password.value)
+      } else {
+        uni.removeStorageSync('remembered_id_card')
+        uni.removeStorageSync('remembered_password')
+      }
+      uni.showToast({ title: '登录成功', icon: 'success' })
+      setTimeout(() => {
+        uni.switchTab({ url: '/pages/index/index' })
+      }, 500)
+    } else {
+      uni.showToast({ title: res.message || res.detail || '登录失败', icon: 'none' })
     }
-    uni.showToast({ title: errorMsg, icon: 'none' });
-}
-  })
+  } catch (err) {
+    uni.hideLoading()
+    console.error('login error', err)
+    let errorMsg = '网络错误，请检查后端服务'
+    if (err.message && typeof err.message === 'string') {
+      errorMsg = err.message
+    }
+    uni.showToast({ title: errorMsg, icon: 'none' })
+  }
 }
 
 

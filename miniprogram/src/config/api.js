@@ -1,8 +1,8 @@
 const API_BASE_URL_STORAGE_KEY = 'mindguard_api_base_url'
-const DEFAULT_DEV_API_BASE_URL = 'http://127.0.0.1:30001/api/v1'
-const DEFAULT_TRIAL_API_BASE_URL = 'https://api.zhouchao5563.online/api/v1'
-const DEFAULT_RELEASE_API_BASE_URL = 'https://api.zhouchao5563.online/api/v1'
-const DEV_FALLBACK_API_BASE_URLS = ['http://127.0.0.1:8000/api/v1']
+const DEFAULT_DEV_API_BASE_URL = 'http://localhost:8000/api/v1'
+const DEFAULT_TRIAL_API_BASE_URL = 'http://localhost:8000/api/v1'
+const DEFAULT_RELEASE_API_BASE_URL = 'http://localhost:8000/api/v1'
+const DEV_FALLBACK_API_BASE_URLS = ['http://localhost:8000/api/v1', 'http://127.0.0.1:8000/api/v1', 'http://localhost:80/api/v1', 'http://127.0.0.1:80/api/v1']
 
 const NODE_ENV = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV) || ''
 
@@ -96,6 +96,11 @@ export function getApiBaseUrlCandidates() {
   const defaultUrl = normalizeBaseUrl(getDefaultApiBaseUrlByStage(stage))
   const useOnlineDomain = !isLocalDevtoolsDebug(stage)
 
+  // Clear old stored URL if it contains 8001 (legacy port)
+  if (stored && stored.includes('8001')) {
+    uni.removeStorageSync(API_BASE_URL_STORAGE_KEY)
+  }
+
   if (useOnlineDomain) {
     // Except local IDE debugging, enforce online domain and ignore dev-stored overrides.
     const onlineEnv = normalizeBaseUrl(
@@ -115,7 +120,7 @@ export function getApiBaseUrlCandidates() {
     return uniqBaseUrls([envUrl, defaultUrl])
   }
 
-  return uniqBaseUrls([stored, envUrl, defaultUrl, ...DEV_FALLBACK_API_BASE_URLS])
+  return uniqBaseUrls([defaultUrl, envUrl, ...DEV_FALLBACK_API_BASE_URLS])
 }
 
 export function getApiBaseUrl() {

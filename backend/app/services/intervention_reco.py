@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.models.assessment import AssessmentResult
 
@@ -156,7 +156,7 @@ def build_top5_from_result(result: AssessmentResult) -> List[Dict[str, Any]]:
     return outputs
 
 
-def parse_frequency_expected_per_week(frequency: str | None) -> float:
+def parse_frequency_expected_per_week(frequency: Optional[str]) -> float:
     if not frequency:
         return 7.0
 

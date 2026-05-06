@@ -1,6 +1,6 @@
 from datetime import date as date_type
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -60,7 +60,7 @@ def _resolve_target_result(
     current_user: User,
     elder_id: Optional[int],
     session_id: Optional[int],
-) -> tuple[AssessmentSession, AssessmentResult]:
+) -> Tuple[AssessmentSession, AssessmentResult]:
     target_elder_id = current_user.id if current_user.role == UserRole.elder else elder_id
 
     if session_id is not None:
@@ -138,7 +138,7 @@ def _plan_matches_recommendation(
     )
 
 
-def _split_notes(raw_notes: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+def _split_notes(raw_notes: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
     if not raw_notes:
         return None, None
     lines = raw_notes.splitlines()
@@ -170,7 +170,7 @@ def _record_to_out(record: InterventionRecord) -> InterventionRecordOut:
     return payload
 
 
-def _compute_plan_stats(db: Session, plan_id: int) -> tuple[int, int]:
+def _compute_plan_stats(db: Session, plan_id: int) -> Tuple[int, int]:
     completed = (
         db.query(func.count(InterventionRecord.id))
         .filter(InterventionRecord.plan_id == plan_id, InterventionRecord.completed == True)
@@ -198,7 +198,7 @@ def _consecutive_missed_days(
     plan: InterventionPlan,
     window_days: int = 14,
     reference_date: Optional[date_type] = None,
-) -> tuple[int, Optional[str]]:
+) -> Tuple[int, Optional[str]]:
     ref = reference_date or date_type.today()
     start_boundary = ref - timedelta(days=max(window_days - 1, 0))
     if plan.start_date:

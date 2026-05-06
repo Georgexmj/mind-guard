@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -94,7 +94,7 @@ def _to_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
-def _vectorize(features: Dict[str, Any], keys: List[tuple[str, float]]) -> np.ndarray:
+def _vectorize(features: Dict[str, Any], keys: List[Tuple[str, float]]) -> np.ndarray:
     output: List[float] = []
     for key, scale in keys:
         raw = _to_float(features.get(key), 0.0)

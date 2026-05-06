@@ -347,7 +347,7 @@ const loadStatsData = () => {
   const token = uni.getStorageSync('token')
   if (!token) return
   uni.request({
-    url: 'http://localhost:8000/api/v1/elders/stats',
+    url: 'http://localhost:80/api/v1/elders/stats',
     method: 'GET',
     header: { Authorization: `Bearer ${token}` },
     success: (res) => {
@@ -423,10 +423,7 @@ const onAssessmentTap = (index) => {
 }
 
 const goToSettings = () => {
-  uni.showToast({
-    title: '设置功能建设中',
-    icon: 'none'
-  })
+  uni.navigateTo({ url: '/pages/settings/index' })
 }
 
 const goToElderDetail = () => {

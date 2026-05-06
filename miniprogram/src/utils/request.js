@@ -1,4 +1,4 @@
-﻿import { getApiBaseUrlCandidates, setApiBaseUrl } from '../config/api'
+import { getApiBaseUrlCandidates, setApiBaseUrl } from '../config/api'
 import { useAuthStore } from '../store/auth'
 
 export { getApiBaseUrl, getApiBaseUrlCandidates, setApiBaseUrl } from '../config/api'
@@ -151,7 +151,25 @@ export function uploadFile(options) {
 }
 
 export const api = {
-  login: (phone, password) => request({ url: '/auth/login', method: 'POST', data: { phone, password } }),
+  login: (username, password) => new Promise((resolve, reject) => {
+    const auth = useAuthStore()
+    wx.request({
+      url: `${getApiBaseUrl()}/auth/login`,
+      method: 'POST',
+      header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data)
+        } else {
+          reject(new Error(res.data?.detail || res.data?.message || 'Login failed'))
+        }
+      },
+      fail: (err) => {
+        reject(new Error(err.errMsg || 'Network error'))
+      }
+    })
+  }),
 
   getMe: () => request({ url: '/auth/me' }),
 

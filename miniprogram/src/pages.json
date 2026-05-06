@@ -66,9 +66,26 @@
       }
     },
     {
+      "path": "pages/intervention/training/index/index",
+      "style": {
+        "navigationBarTitleText": "训练进行中",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FEF7E8",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/index",
+      "style": {
+        "navigationBarTitleText": "设置",
         "navigationBarBackgroundColor": "#FEF7E8",
         "navigationBarTextStyle": "black"
       }

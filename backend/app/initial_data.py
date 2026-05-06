@@ -83,7 +83,7 @@ def seed_users(db, community_id: int) -> None:
             "birth_date": date(1948, 8, 15),
             "education_years": 6,
             "role": UserRole.elder,
-            "password": "elder123",
+            "password": "123456",
         },
         {
             "phone": "13800000004",

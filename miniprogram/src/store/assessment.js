@@ -51,10 +51,6 @@ export const useAssessmentStore = defineStore('assessment', {
         timestamp: new Date().toISOString()
       }
       this.answers.push(fullAnswer)
-      if (this.currentQuestionIndex < this.questions.length - 1) {
-        this.currentQuestionIndex++
-        this.questionStartTime = Date.now()
-      }
       return fullAnswer
     },
     markQuestionStart() {

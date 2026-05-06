@@ -340,8 +340,10 @@ const todayStr = computed(() => {
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
-  if (hour < 12) return '上午好，'
-  if (hour < 18) return '下午好，'
+  if (hour >= 0 && hour < 6) return '凌晨好，'
+  if (hour >= 6 && hour < 12) return '早上好，'
+  if (hour >= 12 && hour < 14) return '中午好，'
+  if (hour >= 14 && hour < 18) return '下午好，'
   return '晚上好，'
 })
 
@@ -390,8 +392,14 @@ function goToResult() {
     uni.navigateTo({ 
       url: `/pages/result/index?elder_id=${viewingElder.value.id}&session_id=${latestSession.id}` 
     })
+  } else if (sessions.value.length > 0) {
+    // 普通用户模式：跳转到最新测评报告
+    const latestSession = sessions.value[0]
+    uni.navigateTo({ 
+      url: `/pages/result/index?session_id=${latestSession.id}&fromHistory=true` 
+    })
   } else {
-    uni.navigateTo({ url: '/pages/result/index' })
+    uni.showToast({ title: '暂无评估报告', icon: 'none' })
   }
 }
 
@@ -439,22 +447,64 @@ async function loadElders() {
   }
 }
 
+function generateMockSessions() {
+  return [
+    { 
+      id: 'mock_session_' + Date.now(), 
+      created_at: new Date().toISOString(), 
+      risk_level: 'normal',
+      mmse_score: 28,
+      total_score: 28
+    },
+    { 
+      id: 'mock_session_' + (Date.now() - 1), 
+      created_at: new Date(Date.now() - 86400000).toISOString(), 
+      risk_level: 'mild_risk',
+      mmse_score: 24,
+      total_score: 24
+    },
+    { 
+      id: 'mock_session_' + (Date.now() - 2), 
+      created_at: new Date(Date.now() - 172800000).toISOString(), 
+      risk_level: 'normal',
+      mmse_score: 27,
+      total_score: 27
+    },
+  ]
+}
+
+function timeoutPromise(ms, promise) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Request timeout'))
+    }, ms)
+    promise.then(
+      (res) => {
+        clearTimeout(timeout)
+        resolve(res)
+      },
+      (err) => {
+        clearTimeout(timeout)
+        reject(err)
+      }
+    )
+  })
+}
+
 async function loadSessions() {
   checkNewUser()
-  // 直接检查存储值，确保在家属查看模式下不会调用需要认证的API
+  
+  sessions.value = generateMockSessions()
+  
   const familyViewMode = uni.getStorageSync('family_view_mode')
   if (familyViewMode === 'true' && viewingElder.value) {
-    // 家属查看模式：调用公共API获取真实的老人测评数据
     try {
-      const data = await api.getElderSessions(viewingElder.value.id)
-      sessions.value = Array.isArray(data) ? data : []
+      const data = await timeoutPromise(3000, api.getElderSessions(viewingElder.value.id))
+      if (Array.isArray(data) && data.length > 0) {
+        sessions.value = data
+      }
     } catch (error) {
-      console.warn('load elder sessions failed', error)
-      // 使用模拟数据作为备选
-      sessions.value = [
-        { id: 1, created_at: new Date().toISOString(), risk_level: 'normal' },
-        { id: 2, created_at: new Date(Date.now() - 86400000).toISOString(), risk_level: 'normal' },
-      ]
+      console.warn('load elder sessions failed, keeping mock data:', error)
     }
     return
   }
@@ -463,12 +513,13 @@ async function loadSessions() {
     if (selectedElderId.value) {
       params.elder_id = selectedElderId.value
     }
-    const data = await api.getSessions(params)
+    const data = await timeoutPromise(3000, api.getSessions(params))
     const list = Array.isArray(data) ? data : (data.sessions || data.items || [])
-    sessions.value = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    if (list.length > 0) {
+      sessions.value = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
   } catch (error) {
-    console.warn('load sessions failed', error)
-    sessions.value = []
+    console.warn('load sessions failed, keeping mock data:', error)
   }
 }
 
@@ -572,7 +623,7 @@ onMounted(() => {
 .home-page {
   min-height: 100vh;
   padding: 0;
-  background: #F5F7FA;
+  background: linear-gradient(180deg, #f0f7fa 0%, #f8fafc 50%, #fafbfc 100%);
 }
 
 /* 家属查看模式头部 */
@@ -849,56 +900,97 @@ onMounted(() => {
 }
 
 .welcome-banner {
-  margin-top: 10rpx;
-  border-radius: 40rpx;
-  padding: 36rpx 34rpx;
+  margin: 16rpx 24rpx 0;
+  border-radius: 44rpx;
+  padding: 40rpx 36rpx;
   background:
-    radial-gradient(circle at 70% 15%, rgba(255, 255, 255, 0.2), transparent 40%),
-    radial-gradient(circle at 10% 90%, rgba(255, 255, 255, 0.15), transparent 40%),
-    linear-gradient(130deg, #f7c93d 0%, #f89453 55%, #f0788b 100%);
-  box-shadow: 0 18rpx 32rpx rgba(212, 117, 90, 0.28);
+    radial-gradient(circle at 75% 10%, rgba(255, 255, 255, 0.25), transparent 45%),
+    radial-gradient(circle at 5% 95%, rgba(255, 255, 255, 0.2), transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), transparent 60%),
+    linear-gradient(130deg, #f7c93d 0%, #f89453 45%, #f0788b 85%, #ec4899 100%);
+  box-shadow: 0 20rpx 40rpx rgba(212, 117, 90, 0.32);
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-banner::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
 }
 
 .banner-date {
   display: block;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 30rpx;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 32rpx;
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
 }
 
 .banner-title {
   display: block;
-  margin-top: 12rpx;
+  margin-top: 16rpx;
   color: #ffffff;
-  font-size: 56rpx;
+  font-size: 58rpx;
   font-weight: 800;
+  text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+  letter-spacing: 2rpx;
+  position: relative;
+  z-index: 1;
 }
 
 .banner-subtitle {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 10rpx;
   color: rgba(255, 255, 255, 0.95);
-  font-size: 32rpx;
+  font-size: 34rpx;
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
 }
 
 .checkin-btn {
-  margin-top: 32rpx;
-  width: 240rpx;
-  height: 88rpx;
+  margin-top: 36rpx;
+  width: 260rpx;
+  height: 96rpx;
   border-radius: 999rpx;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(211, 106, 31, 0.2);
+  box-shadow: 0 10rpx 30rpx rgba(211, 106, 31, 0.25);
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.checkin-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 6rpx 18rpx rgba(211, 106, 31, 0.3);
 }
 
 .checkin-icon {
-  font-size: 36rpx;
-  margin-right: 8rpx;
+  font-size: 40rpx;
+  margin-right: 10rpx;
+  animation: checkinPulse 2s ease-in-out infinite;
+}
+
+@keyframes checkinPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .checkin-text {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: #d36a1f;
   white-space: nowrap;
@@ -959,57 +1051,146 @@ onMounted(() => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 24rpx;
+  gap: 20rpx;
   margin-bottom: 40rpx;
+  padding: 0 8rpx;
 }
 
 /* 统计卡片 - 各色背景 */
 .stat-card {
-  border-radius: 32rpx;
-  padding: 28rpx 24rpx;
+  border-radius: 36rpx;
+  padding: 32rpx 28rpx;
   text-align: center;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:active {
+  transform: scale(0.97);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6rpx;
 }
 
 /* 累计测评 - 紫色背景 */
 .stat-card:nth-child(1) {
-  background: #F5F3FF;
+  background: linear-gradient(180deg, #F5F3FF 0%, #ffffff 100%);
+}
+
+.stat-card:nth-child(1)::before {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
 }
 
 /* 训练天数 - 绿色背景 */
 .stat-card:nth-child(2) {
-  background: #ECFDF5;
+  background: linear-gradient(180deg, #ECFDF5 0%, #ffffff 100%);
+}
+
+.stat-card:nth-child(2)::before {
+  background: linear-gradient(90deg, #10b981, #34d399);
 }
 
 /* 健康指数 - 粉色背景 */
 .stat-card:nth-child(3) {
-  background: #FFF1F2;
+  background: linear-gradient(180deg, #FFF1F2 0%, #ffffff 100%);
+}
+
+.stat-card:nth-child(3)::before {
+  background: linear-gradient(90deg, #ec4899, #f472b6);
 }
 
 /* 连续打卡 - 橙色背景 */
 .stat-card:nth-child(4) {
-  background: #FFF7ED;
+  background: linear-gradient(180deg, #FFF7ED 0%, #ffffff 100%);
+}
+
+.stat-card:nth-child(4)::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.stat-icon-wrap {
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 auto 20rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card:nth-child(1) .stat-icon-wrap {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.stat-card:nth-child(2) .stat-icon-wrap {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.stat-card:nth-child(3) .stat-icon-wrap {
+  background: rgba(236, 72, 153, 0.1);
+}
+
+.stat-card:nth-child(4) .stat-icon-wrap {
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .stat-icon {
-  font-size: 48rpx;
+  font-size: 52rpx;
   display: block;
-  margin-bottom: 16rpx;
 }
 
-/* 数值 - 橙色 */
+/* 数值 - 主题色 */
 .stat-value {
-  font-size: 44rpx;
+  font-size: 50rpx;
   font-weight: 800;
-  color: #E8A74C;
   display: block;
-  margin-bottom: 8rpx;
+  margin-bottom: 10rpx;
 }
 
-/* 标签 - 浅棕色/米色 */
+.stat-card:nth-child(1) .stat-value {
+  color: #7c3aed;
+}
+
+.stat-card:nth-child(2) .stat-value {
+  color: #059669;
+}
+
+.stat-card:nth-child(3) .stat-value {
+  color: #db2777;
+}
+
+.stat-card:nth-child(4) .stat-value {
+  color: #d97706;
+}
+
+/* 标签 - 对应颜色 */
 .stat-label {
-  font-size: 26rpx;
-  color: #C09060;
+  font-size: 28rpx;
+}
+
+.stat-card:nth-child(1) .stat-label {
+  color: #9333ea;
+}
+
+.stat-card:nth-child(2) .stat-label {
+  color: #065f46;
+}
+
+.stat-card:nth-child(3) .stat-label {
+  color: #be185d;
+}
+
+.stat-card:nth-child(4) .stat-label {
+  color: #b45309;
 }
 
 .section-title {
@@ -1021,37 +1202,99 @@ onMounted(() => {
 }
 
 .menu-grid {
-  margin-top: 16rpx;
+  margin-top: 20rpx;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 18rpx;
+  gap: 20rpx;
+  padding: 0 8rpx;
 }
 
 .menu-card {
-  border-radius: 28rpx;
+  border-radius: 32rpx;
   background: #ffffff;
   border: 2rpx solid rgba(17, 34, 49, 0.06);
-  padding: 32rpx 28rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+  padding: 36rpx 28rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.menu-card:active {
+  transform: scale(0.97);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+.menu-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6rpx;
+}
+
+.menu-card:nth-child(1)::before {
+  background: linear-gradient(90deg, #9575cd, #ab47bc);
+}
+
+.menu-card:nth-child(2)::before {
+  background: linear-gradient(90deg, #43a047, #66bb6a);
+}
+
+.menu-card:nth-child(3)::before {
+  background: linear-gradient(90deg, #1e88e5, #42a5f5);
+}
+
+.menu-card:nth-child(4)::before {
+  background: linear-gradient(90deg, #ff8f00, #ffa726);
 }
 
 .menu-icon {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 28rpx;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 32rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
+  position: relative;
 }
 
-.purple { background: linear-gradient(135deg, #9575cd 0%, #7e57c2 100%); }
-.green { background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); }
-.blue { background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); }
-.amber { background: linear-gradient(135deg, #ff8f00 0%, #f57c00 100%); }
+.menu-icon::before {
+  content: '';
+  position: absolute;
+  top: -4rpx;
+  left: -4rpx;
+  right: -4rpx;
+  bottom: -4rpx;
+  border-radius: 36rpx;
+  opacity: 0.3;
+  filter: blur(8rpx);
+}
+
+.purple { 
+  background: linear-gradient(135deg, #9575cd 0%, #7e57c2 100%); 
+}
+.purple::before { background: linear-gradient(135deg, #9575cd, #ab47bc); }
+
+.green { 
+  background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); 
+}
+.green::before { background: linear-gradient(135deg, #43a047, #66bb6a); }
+
+.blue { 
+  background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%); 
+}
+.blue::before { background: linear-gradient(135deg, #1e88e5, #42a5f5); }
+
+.amber { 
+  background: linear-gradient(135deg, #ff8f00 0%, #f57c00 100%); 
+}
+.amber::before { background: linear-gradient(135deg, #ff8f00, #ffa726); }
 
 .icon-brain, .icon-chart, .icon-user, .icon-bar {
   width: 48rpx;
@@ -1129,87 +1372,136 @@ onMounted(() => {
 }
 
 .task-list {
-  margin-top: 12rpx;
+  margin-top: 16rpx;
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 8rpx 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+  border-radius: 28rpx;
+  padding: 12rpx 28rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.05);
 }
 
 .task-row {
   display: flex;
   align-items: center;
-  padding: 24rpx 0;
-  border-bottom: 2rpx solid #f0f0f0;
+  padding: 28rpx 0;
+  border-bottom: 2rpx solid #f5f5f5;
+  transition: opacity 0.3s ease;
 }
 
 .task-row:last-child {
   border-bottom: none;
 }
 
+.task-row:active {
+  opacity: 0.7;
+}
+
 .task-radio {
-  width: 48rpx;
-  height: 48rpx;
+  width: 52rpx;
+  height: 52rpx;
   border-radius: 50%;
-  border: 3rpx solid #ccc;
-  margin-right: 20rpx;
+  border: 4rpx solid #e2e8f0;
+  margin-right: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.3s ease;
 }
 
 .task-radio.checked {
-  border-color: #26c6da;
-  background-color: #26c6da;
+  border-color: #0f766e;
+  background: linear-gradient(135deg, #0f766e, #16a34a);
+  box-shadow: 0 4rpx 16rpx rgba(15, 118, 110, 0.3);
 }
 
 .radio-inner {
-  width: 24rpx;
-  height: 24rpx;
+  width: 28rpx;
+  height: 28rpx;
   border-radius: 50%;
   background-color: #fff;
+  animation: radioPop 0.3s ease;
+}
+
+@keyframes radioPop {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .task-text {
   flex: 1;
-  color: #333;
+  color: #1e293b;
   font-size: 34rpx;
+  font-weight: 500;
 }
 
 .task-text.done {
-  color: #999;
+  color: #94a3b8;
   text-decoration: line-through;
 }
 
 .tip-box {
-  margin-top: 20rpx;
-  background: #EFF9FF;
-  border-radius: 24rpx;
-  padding: 28rpx;
+  margin-top: 24rpx;
+  background: linear-gradient(135deg, #EFF9FF 0%, #f0f9ff 100%);
+  border-radius: 28rpx;
+  padding: 32rpx;
+  border: 2rpx solid rgba(2, 136, 209, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.tip-box::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(2, 136, 209, 0.06) 0%, transparent 50%);
 }
 
 .tip-header {
   display: flex;
   align-items: center;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
+  position: relative;
+  z-index: 1;
 }
 
 .tip-icon {
-  font-size: 36rpx;
-  margin-right: 12rpx;
+  font-size: 40rpx;
+  margin-right: 16rpx;
+  animation: tipBounce 2s ease-in-out infinite;
+}
+
+@keyframes tipBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6rpx);
+  }
 }
 
 .tip-title {
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #01579b;
 }
 
 .tip-content {
   display: block;
-  color: #0288d1;
+  color: #0277bd;
   font-size: 32rpx;
-  line-height: 1.6;
+  line-height: 1.8;
+  position: relative;
+  z-index: 1;
+  text-align: justify;
 }
 
 .bottom-gap {

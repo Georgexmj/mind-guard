@@ -9,7 +9,7 @@ Compared with the earlier MVP mock, this version adds:
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from sqlalchemy import create_engine
@@ -481,7 +481,7 @@ def _score_by_ratio(ratio: float, max_points: int) -> float:
     return float(int(round(_clamp(ratio, 0.0, 1.0) * max_points)))
 
 
-def _weighted_ratio(*parts: tuple[float, float]) -> float:
+def _weighted_ratio(*parts: Tuple[float, float]) -> float:
     if not parts:
         return 0.5
     denominator = sum(weight for _, weight in parts) or 1.0

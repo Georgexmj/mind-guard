@@ -16,7 +16,7 @@ class CommunityOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    refresh_token: str | None = None
+    refresh_token: Optional[str] = None
 
 class TokenData(BaseModel):
     user_id: int
@@ -89,7 +89,7 @@ class UserUpdate(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str | None = None
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     user: UserOut
 

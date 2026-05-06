@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -13,12 +12,8 @@ from app.services.intervention_reco import suggest_next_reassessment_date
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["Dashboard"])
 
-DbDep = Annotated[Session, Depends(get_db)]
-StaffDep = Annotated[User, Depends(require_role(UserRole.admin, UserRole.doctor))]
-
-
 @router.get("/stats")
-def get_dashboard_stats(db: DbDep, _: StaffDep):
+def get_dashboard_stats(db: Session = Depends(get_db), _: User = Depends(require_role(UserRole.admin, UserRole.doctor))):
     """Aggregate KPI statistics for the dashboard overview cards."""
     total_elders = db.query(User).filter(
         User.role == UserRole.elder, User.is_active == True
@@ -53,7 +48,7 @@ def get_dashboard_stats(db: DbDep, _: StaffDep):
 
 
 @router.get("/monthly-trend")
-def get_monthly_trend(db: DbDep, _: StaffDep, months: int = 6):
+def get_monthly_trend(db: Session = Depends(get_db), _: User = Depends(require_role(UserRole.admin, UserRole.doctor)), months: int = 6):
     """
     Month-by-month completed session counts for the past N months.
     Response: [{month: "2026-01", count: 42}, ...]
@@ -83,7 +78,7 @@ def get_monthly_trend(db: DbDep, _: StaffDep, months: int = 6):
 
 
 @router.get("/risk-distribution")
-def get_risk_distribution(db: DbDep, _: StaffDep):
+def get_risk_distribution(db: Session = Depends(get_db), _: User = Depends(require_role(UserRole.admin, UserRole.doctor))):
     """Count of assessment results by risk level."""
     rows = (
         db.query(AssessmentResult.risk_level, func.count(AssessmentResult.id).label("cnt"))
@@ -102,7 +97,7 @@ def get_risk_distribution(db: DbDep, _: StaffDep):
 
 
 @router.get("/high-risk-list")
-def get_high_risk_list(db: DbDep, _: StaffDep, limit: int = 10):
+def get_high_risk_list(db: Session = Depends(get_db), _: User = Depends(require_role(UserRole.admin, UserRole.doctor)), limit: int = 10):
     """Most recent high-risk assessment results with elder info."""
     rows = (
         db.query(AssessmentResult, AssessmentSession, User)
@@ -129,7 +124,7 @@ def get_high_risk_list(db: DbDep, _: StaffDep, limit: int = 10):
 
 
 @router.get("/workbench-queues")
-def get_workbench_queues(db: DbDep, _: StaffDep, limit: int = 20):
+def get_workbench_queues(db: Session = Depends(get_db), _: User = Depends(require_role(UserRole.admin, UserRole.doctor)), limit: int = 20):
     # Queue 1: high risk elders (latest results).
     high_risk = get_high_risk_list(db, _, limit=limit)
 

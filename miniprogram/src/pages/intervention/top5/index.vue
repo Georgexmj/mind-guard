@@ -330,7 +330,7 @@ const progressPercent = computed(() => {
 
 function goToTraining(course) {
   uni.navigateTo({
-    url: `/pages/intervention/training/index?id=${course.id}`
+    url: `/pages/intervention/training/index/index?id=${course.id}`
   })
 }
 </script>

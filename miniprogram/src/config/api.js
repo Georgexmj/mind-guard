@@ -1,4 +1,5 @@
 const API_BASE_URL_STORAGE_KEY = 'mindguard_api_base_url'
+const FORCE_LOCAL_API_STORAGE_KEY = 'mindguard_force_local_api'
 const DEFAULT_DEV_API_BASE_URL = 'http://127.0.0.1:30001/api/v1'
 const DEFAULT_TRIAL_API_BASE_URL = 'https://api.yishouxinan.site/api/v1'
 const DEFAULT_RELEASE_API_BASE_URL = 'https://api.yishouxinan.site/api/v1'
@@ -44,9 +45,27 @@ function getPlatform() {
   }
 }
 
+function isTruthyFlag(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value !== 'string') return false
+  const normalized = value.trim().toLowerCase()
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
+}
+
+function getForceLocalApiFlag() {
+  const envFlag = getEnvValue(['UNI_FORCE_LOCAL_API', 'VITE_FORCE_LOCAL_API', 'FORCE_LOCAL_API'])
+  if (isTruthyFlag(envFlag)) return true
+  try {
+    return isTruthyFlag(uni.getStorageSync(FORCE_LOCAL_API_STORAGE_KEY))
+  } catch (error) {
+    return false
+  }
+}
+
 function isLocalDevtoolsDebug(stage) {
-  // Only local IDE debugging (develop + devtools) should use localhost.
-  return stage === 'develop' && getPlatform() === 'devtools'
+  // Default strategy: always use online domain.
+  // Only when explicitly enabled (env/storage flag), local devtools uses localhost.
+  return stage === 'develop' && getPlatform() === 'devtools' && getForceLocalApiFlag()
 }
 
 function getEnvApiBaseUrlByStage(stage) {

@@ -1,8 +1,8 @@
-FROM python:3.11-slim
+﻿FROM python:3.11-slim
 
 WORKDIR /app
 
-# 切换 apt 为阿里云镜像并安装系统依赖
+# Switch apt mirrors and install system dependencies
 RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
     sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true \
     && apt-get update && apt-get install -y --no-install-recommends \
@@ -14,13 +14,10 @@ RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/source
 
 COPY requirements.txt .
 
-# 使用清华 PyPI 镜像加速安装
+# Use official PyPI to avoid mirror hash mismatch issues
 RUN pip install --no-cache-dir -r requirements.txt \
-    -i https://mirrors.cloud.tencent.com/pypi/simple \
-    --trusted-host mirrors.cloud.tencent.com \
     --retries 12 \
     --timeout 300
-
 
 COPY . .
 

@@ -5,7 +5,7 @@
         <view class="spinner" />
         <view class="spinner-inner" />
       </view>
-      <text class="polling-title">AI 正在分析中...</text>
+      <text class="polling-title">结果正在生成中...</text>
       <text class="polling-subtitle">系统正在处理您的评估数据，请稍候。</text>
       <view class="polling-progress">
         <view class="polling-bar">
@@ -119,7 +119,7 @@
             <text class="prob-value">{{ probAD }}%</text>
           </view>
         </view>
-        <text class="prob-hint">* 以上概率由 AI 模型计算，仅供参考，不作为临床诊断依据。</text>
+        <text class="prob-hint">* 以上概率由评估规则综合计算，仅供参考，不作为临床诊断依据。</text>
       </view>
 
       <view class="mg-card card recommendation-card">

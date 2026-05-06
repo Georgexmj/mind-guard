@@ -15,11 +15,11 @@
         </view>
         <view class="tag">
           <text class="tag-icon">⚡</text>
-          <text class="tag-text">AI驱动</text>
+          <text class="tag-text">辅助评估</text>
         </view>
         <view class="tag">
           <text class="tag-icon">🎯</text>
-          <text class="tag-text">精准分析</text>
+          <text class="tag-text">综合参考</text>
         </view>
       </view>
     </view>
@@ -30,10 +30,10 @@
       </view>
       <view class="ai-content">
         <view class="ai-header">
-          <text class="ai-title">AI多模态评估</text>
+          <text class="ai-title">多维综合评估</text>
           <view class="recommend-badge">强烈推荐</view>
         </view>
-        <text class="ai-desc">语音+绘图+行为多维度综合分析，AI赋能，结果更精准</text>
+        <text class="ai-desc">结合语音、绘图与答题表现进行综合评估，结果更便于参考</text>
         <view class="ai-meta">
           <view class="meta-item">
             <text class="meta-icon">⏱️</text>
@@ -45,7 +45,7 @@
           </view>
           <view class="meta-item">
             <text class="meta-icon">🧠</text>
-            <text class="meta-text">SHAP解释</text>
+            <text class="meta-text">结果说明</text>
           </view>
         </view>
       </view>

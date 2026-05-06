@@ -300,7 +300,7 @@ const mocaQuestions = [
   }
 ]
 
-// 默认题目数据（AI多模态评估）
+// 默认题目数据（多维综合评估）
 const defaultQuestions = [
   {
     id: 'q1',

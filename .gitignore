@@ -35,6 +35,9 @@ pnpm-debug.log*
 unpackage/
 .hbuilderx/
 
+# Release/package artifacts
+artifacts/
+
 # Logs and temp
 *.log
 tmp/

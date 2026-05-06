@@ -74,8 +74,8 @@
               <view class="family-menu-icon ai">
                 <text class="icon-text">🤖</text>
               </view>
-              <text class="family-menu-title">AI分析</text>
-              <text class="family-menu-desc">智能健康分析</text>
+              <text class="family-menu-title">健康解读</text>
+              <text class="family-menu-desc">评估数据解读</text>
             </view>
             <view class="family-menu-card" @tap="goToAssessment">
               <view class="family-menu-icon assessment">
@@ -539,7 +539,7 @@ function exitFamilyViewMode() {
 
 // 家属查看模式的导航方法
 function goToAiAnalysis() {
-  uni.showToast({ title: 'AI分析功能开发中', icon: 'none' })
+  uni.showToast({ title: '健康解读功能开发中', icon: 'none' })
 }
 
 function goToNotifications() {

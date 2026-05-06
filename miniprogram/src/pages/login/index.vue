@@ -213,7 +213,7 @@ const toggleRemember = () => {
 }
 
 // 老人登录处理（使用身份证号 + 密码）
-const handleLogin = async () => {
+const handleLogin = () => {
   if (!idCardForLogin.value || !password.value) {
     uni.showToast({ title: '请填写身份证号和密码', icon: 'none' })
     return
@@ -250,30 +250,17 @@ const handleLogin = async () => {
       } else {
         uni.showToast({ title: res.data.message || res.data.detail || '登录失败', icon: 'none' })
       }
-      authStore.setAuth(userInfo, token)
-      if (rememberPwd.value) {
-        uni.setStorageSync('remembered_id_card', idCardForLogin.value)
-        uni.setStorageSync('remembered_password', password.value)
-      } else {
-        uni.removeStorageSync('remembered_id_card')
-        uni.removeStorageSync('remembered_password')
+    },
+    fail: (err) => {
+      uni.hideLoading()
+      console.error('login error', err)
+      let errorMsg = '网络错误，请检查后端服务'
+      if (err.errMsg && typeof err.errMsg === 'string') {
+        errorMsg = err.errMsg
       }
-      uni.showToast({ title: '登录成功', icon: 'success' })
-      setTimeout(() => {
-        uni.switchTab({ url: '/pages/index/index' })
-      }, 500)
-    } else {
-      uni.showToast({ title: res.message || res.detail || '登录失败', icon: 'none' })
-    }
-  } catch (err) {
-    uni.hideLoading()
-    console.error('login error', err)
-    let errorMsg = '网络错误，请检查后端服务'
-    if (err.message && typeof err.message === 'string') {
-      errorMsg = err.message
-    }
-    uni.showToast({ title: errorMsg, icon: 'none' })
-  }
+      uni.showToast({ title: errorMsg, icon: 'none' })
+    },
+  })
 }
 
 

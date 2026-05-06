@@ -18,7 +18,7 @@ db = SessionLocal()
 try:
     user = db.query(User).filter(User.id_card == '123456194808151234').first()
     if user:
-        user.password_hash = hash_password('123456')
+        user.password_hash = hash_password('elder123')
         db.commit()
         print(f"Password updated for user: {user.name} ({user.id_card})")
     else:

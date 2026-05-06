@@ -431,12 +431,6 @@ onMounted(() => {
   }
   const rememberedIdCard = uni.getStorageSync('remembered_id_card')
   const rememberedPassword = uni.getStorageSync('remembered_password')
-  if (rememberedIdCard === '123456194808151234' || rememberedPassword === 'elder123') {
-    uni.removeStorageSync('remembered_id_card')
-    uni.removeStorageSync('remembered_password')
-    rememberPwd.value = false
-    return
-  }
   if (rememberedIdCard && rememberedPassword) {
     idCardForLogin.value = rememberedIdCard
     password.value = rememberedPassword

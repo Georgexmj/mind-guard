@@ -246,7 +246,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onReady, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/utils/request'
 
@@ -617,6 +617,23 @@ onMounted(() => {
   }
   loadSessions()
 })
+
+onReady(() => {
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+  })
+})
+
+onShareAppMessage(() => ({
+  title: '忆守心安：社区老年认知障碍早筛与干预系统',
+  path: '/pages/index/index',
+}))
+
+onShareTimeline(() => ({
+  title: '忆守心安：社区老年认知障碍早筛与干预系统',
+  query: '',
+}))
 </script>
 
 <style scoped>

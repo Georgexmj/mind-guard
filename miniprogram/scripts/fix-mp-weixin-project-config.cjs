@@ -4,6 +4,7 @@ const path = require('path')
 const distDir = path.resolve(__dirname, '..', 'dist', 'build', 'mp-weixin')
 const target = path.join(distDir, 'project.config.json')
 const appWxss = path.join(distDir, 'app.wxss')
+const appJson = path.join(distDir, 'app.json')
 
 if (!fs.existsSync(distDir)) {
   console.log('[fix-mp-config] dist folder not found, skip.')
@@ -51,6 +52,20 @@ const config = {
 
 fs.writeFileSync(target, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
 console.log('[fix-mp-config] project.config.json merged and fixed.')
+
+if (fs.existsSync(appJson)) {
+  try {
+    const appConfig = JSON.parse(fs.readFileSync(appJson, 'utf8'))
+    // app.json `permission` does not support scope.record/scope.camera in current WeChat toolchain.
+    if (appConfig && appConfig.permission) {
+      delete appConfig.permission
+      fs.writeFileSync(appJson, `${JSON.stringify(appConfig, null, 2)}\n`, 'utf8')
+      console.log('[fix-mp-config] app.json invalid permission removed.')
+    }
+  } catch (error) {
+    console.warn('[fix-mp-config] app.json parse failed, skip permission cleanup.', error?.message || error)
+  }
+}
 
 if (fs.existsSync(appWxss)) {
   const source = fs.readFileSync(appWxss, 'utf8')

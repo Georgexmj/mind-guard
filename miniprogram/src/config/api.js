@@ -1,8 +1,8 @@
 const API_BASE_URL_STORAGE_KEY = 'mindguard_api_base_url'
-const DEFAULT_DEV_API_BASE_URL = 'http://localhost:8000/api/v1'
-const DEFAULT_TRIAL_API_BASE_URL = 'http://localhost:8000/api/v1'
-const DEFAULT_RELEASE_API_BASE_URL = 'http://localhost:8000/api/v1'
-const DEV_FALLBACK_API_BASE_URLS = ['http://localhost:8000/api/v1', 'http://127.0.0.1:8000/api/v1', 'http://localhost:80/api/v1', 'http://127.0.0.1:80/api/v1']
+const DEFAULT_DEV_API_BASE_URL = 'http://127.0.0.1:30001/api/v1'
+const DEFAULT_TRIAL_API_BASE_URL = 'https://api.yishouxinan.site/api/v1'
+const DEFAULT_RELEASE_API_BASE_URL = 'https://api.yishouxinan.site/api/v1'
+const DEV_FALLBACK_API_BASE_URLS = ['http://127.0.0.1:8000/api/v1']
 
 const NODE_ENV = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV) || ''
 
@@ -74,7 +74,14 @@ function getDefaultApiBaseUrlByStage(stage) {
 
 function normalizeBaseUrl(url) {
   if (!url || typeof url !== 'string') return ''
-  return url.trim().replace(/\/+$/, '')
+  // Remove zero-width chars copied from rich text/editors.
+  return url.replace(/[\u200B-\u200D\uFEFF]/g, '').trim().replace(/\/+$/, '')
+}
+
+function isValidHttpBaseUrl(url) {
+  if (!url || typeof url !== 'string') return false
+  if (!/^https?:\/\//i.test(url)) return false
+  return true
 }
 
 function uniqBaseUrls(urls) {
@@ -82,7 +89,7 @@ function uniqBaseUrls(urls) {
   const list = []
   urls.forEach((url) => {
     const normalized = normalizeBaseUrl(url)
-    if (!normalized || seen.has(normalized)) return
+    if (!normalized || !isValidHttpBaseUrl(normalized) || seen.has(normalized)) return
     seen.add(normalized)
     list.push(normalized)
   })

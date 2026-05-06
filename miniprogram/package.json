@@ -9,7 +9,8 @@
     "@dcloudio/uni-app": "3.0.0-4020920240930001",
     "@dcloudio/uni-mp-weixin": "3.0.0-4020920240930001",
     "pinia": "^2.1.7",
-    "vue": "^3.4.21"
+    "vue": "^3.4.21",
+    "weixin": "^0.0.1"
   },
   "devDependencies": {
     "@dcloudio/uni-ui": "^1.4.28",

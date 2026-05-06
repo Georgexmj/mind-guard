@@ -37,8 +37,10 @@
           <view class="label">密码</view>
           <view class="password-wrapper">
             <input class="password-input" :password="!showPassword" placeholder="请输入密码" v-model="password" />
-            <view class="eye-icon" @click="togglePassword">
-              <text>{{ showPassword ? '👁' : '🚫👁' }}</text>
+            <view class="password-eye" :class="{ hidden: !showPassword }" @tap.stop="togglePassword">
+              <view class="eye-outline">
+                <view class="eye-dot"></view>
+              </view>
             </view>
           </view>
         </view>
@@ -57,7 +59,7 @@
 
         <view class="register">
           <text>需要为老人开通服务？</text>
-          <text class="link" @click="goToChildBind">子女代为关联</text>
+          <text class="link" @tap.stop="goToChildBind">子女代为关联</text>
         </view>
       </view>
 
@@ -162,8 +164,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { onReady, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/store/auth'
-import { api } from '@/utils/request'
+import { api, getApiBaseUrl } from '@/utils/request'
 
 const authStore = useAuthStore()
 
@@ -216,17 +219,36 @@ const handleLogin = async () => {
     return
   }
   uni.showLoading({ title: '登录中...', mask: true })
-  try {
-    const res = await api.login(idCardForLogin.value, password.value)
-    uni.hideLoading()
-    if (res.access_token) {
-      const token = res.access_token
-      const userData = res.user || {}
-      const userInfo = {
-        id_card: idCardForLogin.value,
-        name: userData.name || '用户',
-        role: userData.role || 'elder',
-        full_name: userData.name || '用户'
+  uni.request({
+    url: `${getApiBaseUrl()}/auth/login`,
+    method: 'POST',
+    header: { 'content-type': 'application/x-www-form-urlencoded' },
+    data: `username=${encodeURIComponent(idCardForLogin.value)}&password=${encodeURIComponent(password.value)}`,
+    success: (res) => {
+      uni.hideLoading()
+      if (res.statusCode === 200 && res.data.access_token) {
+        const token = res.data.access_token
+        const userData = res.data.user || {}
+        const userInfo = {
+          id_card: idCardForLogin.value,
+          name: userData.name || '用户',
+          role: userData.role || 'elder',
+          full_name: userData.name || '用户'
+        }
+        authStore.setAuth(userInfo, token)
+        if (rememberPwd.value) {
+          uni.setStorageSync('remembered_id_card', idCardForLogin.value)
+          uni.setStorageSync('remembered_password', password.value)
+        } else {
+          uni.removeStorageSync('remembered_id_card')
+          uni.removeStorageSync('remembered_password')
+        }
+        uni.showToast({ title: '登录成功', icon: 'success' })
+        setTimeout(() => {
+          uni.switchTab({ url: '/pages/index/index' })
+        }, 500)
+      } else {
+        uni.showToast({ title: res.data.message || res.data.detail || '登录失败', icon: 'none' })
       }
       authStore.setAuth(userInfo, token)
       if (rememberPwd.value) {
@@ -263,7 +285,7 @@ const handleChildLogin = () => {
   }
   uni.showLoading({ title: '登录中...', mask: true })
   uni.request({
-    url: 'http://localhost:8000/api/v1/auth/login',
+    url: `${getApiBaseUrl()}/auth/login`,
     method: 'POST',
     header: { 'content-type': 'application/x-www-form-urlencoded' },
     data: `username=${encodeURIComponent(childPhone.value)}&password=${encodeURIComponent(childPassword.value)}`,
@@ -377,12 +399,30 @@ const verifyIdCardAndView = async () => {
 }
 
 const goToChildBind = () => {
-  uni.navigateTo({ url: '/pages/child-bind/index' })
+  switchLoginType('child')
+  uni.pageScrollTo({ scrollTop: 0, duration: 200 })
 }
 
 const goToForgotPwd = () => {
   uni.navigateTo({ url: '/pages/forgot/index' })
 }
+
+onReady(() => {
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+  })
+})
+
+onShareAppMessage(() => ({
+  title: '忆守心安：社区老年认知障碍早筛与干预系统',
+  path: '/pages/login/index',
+}))
+
+onShareTimeline(() => ({
+  title: '忆守心安：社区老年认知障碍早筛与干预系统',
+  query: '',
+}))
 
 onMounted(() => {
   if (authStore.isLoggedIn && authStore.token) {
@@ -547,14 +587,62 @@ onMounted(() => {
   padding-right: 60rpx;
 }
 
-.eye-icon {
+.password-eye {
   position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  padding: 10rpx;
-  font-size: 44rpx;
+  width: 76rpx;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
+  z-index: 3;
+}
+
+.eye-outline {
+  position: relative;
+  width: 48rpx;
+  height: 28rpx;
+  border: 3rpx solid #B87946;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: rgba(255, 248, 238, 0.85);
+}
+
+.eye-outline::before {
+  content: '';
+  position: absolute;
+  left: -4rpx;
+  right: -4rpx;
+  top: 50%;
+  height: 20rpx;
+  border-top: 3rpx solid #B87946;
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.eye-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #8B4A2A;
+  transform: translate(-50%, -50%);
+}
+
+.password-eye.hidden::after {
+  content: '';
+  position: absolute;
+  width: 58rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: #B45F2A;
+  box-shadow: 0 0 0 4rpx #fff;
+  transform: rotate(-42deg);
 }
 
 .options {

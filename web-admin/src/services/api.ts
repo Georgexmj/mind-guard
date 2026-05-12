@@ -33,9 +33,28 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token')
+    const user = localStorage.getItem('mindguard-user')
+    const fullUrl = config.baseURL ? `${config.baseURL}${config.url}` : config.url
+    
+    // 详细的调试日志
+    console.log('[API Request]', {
+      baseURL: config.baseURL,
+      url: config.url,
+      fullUrl: fullUrl,
+      method: config.method,
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      hasUser: !!user,
+      authHeaderSet: !!config.headers.Authorization
+    })
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log('[API Request] Authorization header set:', `Bearer ${token.substring(0, 20)}...`)
+    } else {
+      console.warn('[API Request] No token found in localStorage')
     }
+    
     return config
   },
   (error) => Promise.reject(error)
@@ -45,10 +64,30 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // 请求被中止（可能是页面跳转导致的），不处理
+    if (error.code === 'ERR_CANCELED' || error.message?.includes('ERR_ABORTED')) {
+      console.warn('[API] 请求被中止:', error.config?.url)
+      return Promise.reject(error)
+    }
+    
     if (error.response?.status === 401) {
+      console.error('[API] 401 Unauthorized:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        responseData: error.response?.data,
+        tokenInStorage: !!localStorage.getItem('access_token'),
+        userInStorage: !!localStorage.getItem('mindguard-user')
+      })
+      // 清除所有认证相关数据，保持状态一致
+      localStorage.removeItem('mindguard-user')
+      localStorage.removeItem('mindguard-auth')
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      globalThis.location.href = '/login'
+      
+      // 只有当前不在登录页时才跳转
+      if (window.location.pathname !== '/login') {
+        globalThis.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -125,11 +164,11 @@ export const getElders = async (params?: UserListParams): Promise<User[]> =>
   fetchUserList('/users/elders', params)
 
 export const getFamilies = async (params?: UserListParams): Promise<User[]> => {
-  return fetchUserList('/users', params, { role: 'family' })
+  return fetchUserList('/users/', params, { role: 'family' })
 }
 
 export const getDoctors = async (params?: UserListParams): Promise<User[]> => {
-  return fetchUserList('/users', params, { role: 'doctor' })
+  return fetchUserList('/users/', params, { role: 'doctor' })
 }
 
 export const getElderById = async (userId: number): Promise<User> => {
@@ -188,9 +227,20 @@ export const getSessions = async (params?: {
   page?: number
   page_size?: number
 }): Promise<AssessmentSession[]> => {
-  const response = await apiClient.get<AssessmentSession[]>('/assessments/sessions')
+  const queryParams: Record<string, unknown> = {}
+  
+  if (typeof params?.user_id === 'number') {
+    queryParams.elder_id = params.user_id
+  }
+  
+  if (params?.status) {
+    queryParams.status = params.status
+  }
+  
+  const response = await apiClient.get<AssessmentSession[]>('/assessments/sessions', { params: queryParams })
   let sessions = Array.isArray(response.data) ? response.data : []
 
+  // 前端二次过滤作为后备
   if (typeof params?.user_id === 'number') {
     sessions = sessions.filter((session) => session.user_id === params.user_id)
   }
@@ -201,7 +251,7 @@ export const getSessions = async (params?: {
 
   try {
     const [elders, communities] = await Promise.all([
-      getElders({ page: 1, page_size: 1000 }),
+      getElders({ page: 1, page_size: 100 }),
       getCommunities(),
     ])
 
@@ -253,7 +303,7 @@ export const getSessionDetail = async (
 
 // Communities
 export const getCommunities = async (): Promise<Community[]> => {
-  const response = await apiClient.get<Community[]>('/communities')
+  const response = await apiClient.get<Community[]>('/communities/')
   return response.data
 }
 

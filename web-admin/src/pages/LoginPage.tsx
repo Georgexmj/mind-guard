@@ -1,9 +1,7 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Card, Form, Input, Button, Typography, message, Alert, Space } from 'antd'
 import { UserOutlined, LockOutlined, MedicineBoxOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
 import { login } from '../services/api'
-import { useAuthStore } from '../store/auth'
 import type { User } from '../types'
 import loginIllustration from '../assets/login-health-illustration.svg'
 import '../styles/login.css'
@@ -33,17 +31,20 @@ interface LoginForm {
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm<LoginForm>()
-  const navigate = useNavigate()
-  const { setAuth } = useAuthStore()
   const [messageApi, contextHolder] = message.useMessage()
 
   const handleLogin = async (values: LoginForm) => {
     setLoading(true)
     try {
       const response = await login(values.phone, values.password)
-      setAuth(response.user, response.access_token)
-      messageApi.success('登录成功，欢迎回来。')
-      setTimeout(() => navigate(getDefaultRouteByRole(response.user?.role)), 350)
+      
+      // 直接保存到 localStorage（不经过任何状态管理）
+      localStorage.setItem('mindguard-user', JSON.stringify(response.user))
+      localStorage.setItem('access_token', response.access_token)
+      
+      // 直接跳转
+      const targetRoute = getDefaultRouteByRole(response.user?.role)
+      window.location.href = window.location.origin + targetRoute
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } }
       messageApi.error(error?.response?.data?.detail || '登录失败，请检查手机号和密码。')
@@ -63,7 +64,7 @@ export default function LoginPage() {
       <div className="mg-login-bg-orb mg-login-bg-orb-b" />
       <div className="mg-login-bg-grid" />
 
-      <Card className="mg-login-card" bodyStyle={{ padding: 0 }}>
+      <Card className="mg-login-card" styles={{ body: { padding: 0 } }}>
         <div className="mg-login-left">
           <div className="mg-login-brand">
             <div className="mg-login-brand-icon">

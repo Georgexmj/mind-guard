@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Alert,
   Avatar,
@@ -172,7 +172,7 @@ export default function ElderDetailPage() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '120px 0' }}>
-        <Spin size="large" tip="加载中..." />
+        <Spin size="large" />
       </div>
     )
   }
@@ -211,11 +211,11 @@ export default function ElderDetailPage() {
 
       {error && <Alert type="warning" message={error} showIcon style={{ marginBottom: 16, borderRadius: 8 }} />}
 
-      <Row gutter={[20, 20]}>
+      <Row gutter={[20, 20]} align="stretch">
         <Col xs={24} lg={8}>
           <Card
-            style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
-            bodyStyle={{ padding: 24 }}
+            style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', height: '100%' }}
+            styles={{ body: { padding: 24, flex: 1, display: 'flex', flexDirection: 'column' } }}
           >
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <Avatar
@@ -251,7 +251,7 @@ export default function ElderDetailPage() {
 
             <Divider style={{ margin: '16px 0' }} />
 
-            <div>
+            <div style={{ marginTop: 'auto' }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 评估总次数
               </Text>
@@ -277,7 +277,7 @@ export default function ElderDetailPage() {
                   </Text>
                 </Space>
               }
-              style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 20 }}
+              style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', height: '100%' }}
             >
               <Row gutter={[16, 16]} align="middle">
                 <Col xs={24} sm={10}>
@@ -325,16 +325,19 @@ export default function ElderDetailPage() {
                 </Col>
               </Row>
               <Divider style={{ margin: '16px 0' }} />
-              <CognitiveRadar domainScores={latestResult.domain_scores} height={300} />
+              <CognitiveRadar domainScores={latestResult.domain_scores} height={220} />
             </Card>
           ) : (
-            <Alert
-              type="info"
-              showIcon
-              message="暂无评估结果"
-              description="该老人尚无已完成评估，或结果接口暂时不可用。"
-              style={{ marginBottom: 20 }}
-            />
+            <Card
+              style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Alert
+                type="info"
+                showIcon
+                message="暂无评估结果"
+                description="该老人尚无已完成评估，或结果接口暂时不可用。"
+              />
+            </Card>
           )}
         </Col>
       </Row>

@@ -439,54 +439,32 @@ async function fetchFamilyResult() {
 
 function generateMockResult() {
   const now = new Date()
-  const riskLevels = ['normal', 'mild_risk', 'high_risk']
-  const randomRisk = riskLevels[Math.floor(Math.random() * riskLevels.length)]
   
   return {
     id: 'mock_result_' + Date.now(),
     session_id: sessionId.value || 'mock_session',
-    risk_level: randomRisk,
-    classification: randomRisk,
-    mmse_score: randomRisk === 'high_risk' ? Math.floor(Math.random() * 18) + 10 : 
-                randomRisk === 'mild_risk' ? Math.floor(Math.random() * 6) + 22 :
-                Math.floor(Math.random() * 4) + 26,
-    total_score: randomRisk === 'high_risk' ? Math.floor(Math.random() * 18) + 10 : 
-                 randomRisk === 'mild_risk' ? Math.floor(Math.random() * 6) + 22 :
-                 Math.floor(Math.random() * 4) + 26,
+    risk_level: 'mild_risk',
+    classification: 'mild_risk',
+    mmse_score: 24,
+    total_score: 24,
     created_at: now.toISOString(),
     domain_scores: {
-      memory: Math.floor(Math.random() * 3) + 4,
-      orientation: Math.floor(Math.random() * 4) + 7,
-      attention: Math.floor(Math.random() * 2) + 4,
-      language: Math.floor(Math.random() * 2) + 4,
-      visuospatial: Math.random() > 0.5 ? 1 : 0,
-      recall: Math.floor(Math.random() * 2) + 2,
+      memory: 5,
+      orientation: 8,
+      attention: 5,
+      language: 5,
+      visuospatial: 1,
+      recall: 3,
     },
     probabilities: {
-      normal: randomRisk === 'normal' ? Math.floor(Math.random() * 30) + 70 :
-              randomRisk === 'mild_risk' ? Math.floor(Math.random() * 30) + 30 :
-              Math.floor(Math.random() * 20) + 10,
-      mci: randomRisk === 'normal' ? Math.floor(Math.random() * 20) + 10 :
-           randomRisk === 'mild_risk' ? Math.floor(Math.random() * 30) + 40 :
-           Math.floor(Math.random() * 30) + 30,
-      ad: randomRisk === 'normal' ? Math.floor(Math.random() * 10) + 0 :
-          randomRisk === 'mild_risk' ? Math.floor(Math.random() * 20) + 10 :
-          Math.floor(Math.random() * 30) + 50,
+      normal: 50,
+      mci: 40,
+      ad: 20,
     },
-    nc_probability: randomRisk === 'normal' ? Math.floor(Math.random() * 30) + 70 :
-                    randomRisk === 'mild_risk' ? Math.floor(Math.random() * 30) + 30 :
-                    Math.floor(Math.random() * 20) + 10,
-    mci_probability: randomRisk === 'normal' ? Math.floor(Math.random() * 20) + 10 :
-                     randomRisk === 'mild_risk' ? Math.floor(Math.random() * 30) + 40 :
-                     Math.floor(Math.random() * 30) + 30,
-    ad_probability: randomRisk === 'normal' ? Math.floor(Math.random() * 10) + 0 :
-                    randomRisk === 'mild_risk' ? Math.floor(Math.random() * 20) + 10 :
-                    Math.floor(Math.random() * 30) + 50,
-    recommendation: randomRisk === 'normal' 
-      ? '认知状态整体稳定。建议保持规律作息、适度运动和社交活动，并按期复评。'
-      : randomRisk === 'mild_risk'
-        ? '存在轻度认知风险信号。建议到记忆门诊或神经内科复查，并坚持认知训练。'
-        : '提示认知风险较高。建议尽快就医并在家属陪同下完成进一步检查。',
+    nc_probability: 50,
+    mci_probability: 40,
+    ad_probability: 20,
+    recommendation: '评估结果获取中，请稍后刷新页面查看完整结果。',
   }
 }
 

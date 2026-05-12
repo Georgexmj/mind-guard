@@ -112,6 +112,7 @@ def submit_answer(db: Session, session_id: int, answer: AnswerSubmit) -> Assessm
     """
     Record a user's answer for a question in a session.
     Evaluates correctness for choice questions automatically.
+    Supports both integer and string question IDs from mini-program.
     """
     session = db.query(AssessmentSession).filter(AssessmentSession.id == session_id).first()
     if session is None:
@@ -126,19 +127,42 @@ def submit_answer(db: Session, session_id: int, answer: AnswerSubmit) -> Assessm
             detail="Session is not in progress",
         )
 
-    question = db.query(Question).filter(Question.id == answer.question_id).first()
-    if question is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Question {answer.question_id} not found",
+    # Handle both integer and string question IDs
+    question_id_str = answer.question_id
+    question = None
+    final_question_id = None
+    original_question_id = question_id_str  # Store original string ID
+    
+    # Try to parse as integer first
+    try:
+        int_question_id = int(question_id_str)
+        question = db.query(Question).filter(Question.id == int_question_id).first()
+        final_question_id = int_question_id
+    except (ValueError, TypeError):
+        # It's a string ID from mini-program (e.g., 'q1', 'mmse_1', 'moca_1')
+        # For mini-program questions, use a hash-based integer ID
+        # Use hash of string to generate a consistent integer
+        hash_val = hash(question_id_str)
+        final_question_id = abs(hash_val) % 1000000
+        # Check if this question_id already exists in responses
+        existing = (
+            db.query(AssessmentResponse)
+            .filter(
+                AssessmentResponse.session_id == session_id,
+                AssessmentResponse.question_id == final_question_id,
+            )
+            .first()
         )
+        if existing:
+            # Collision - use a different approach
+            final_question_id = abs(hash(question_id_str + str(session_id))) % 1000000
 
     # Check for duplicate answer
     existing = (
         db.query(AssessmentResponse)
         .filter(
             AssessmentResponse.session_id == session_id,
-            AssessmentResponse.question_id == answer.question_id,
+            AssessmentResponse.question_id == final_question_id,
         )
         .first()
     )
@@ -152,28 +176,31 @@ def submit_answer(db: Session, session_id: int, answer: AnswerSubmit) -> Assessm
     is_correct: Optional[bool] = None
     score: Optional[float] = None
 
-    if question.q_type.value == "choice" and question.correct_answer is not None:
-        answer_text_norm = (answer.answer_text or "").strip().lower()
-        correct_norm = question.correct_answer.strip().lower()
-        is_correct = answer_text_norm == correct_norm
-        score = 1.0 if is_correct else 0.0
-    elif question.q_type.value in ("voice", "drawing", "scale"):
-        # For non-choice types, scoring is done by AI service later
-        # For scale questions, store raw value as score normalized to 0-1
-        if question.q_type.value == "scale" and answer.answer_text is not None:
-            try:
-                raw_val = float(answer.answer_text)
-                score = min(max(raw_val / 10.0, 0.0), 1.0)
-                is_correct = score >= 0.5
-            except ValueError:
-                score = 0.0
-                is_correct = False
+    if question:
+        if question.q_type.value == "choice" and question.correct_answer is not None:
+            answer_text_norm = (answer.answer_text or "").strip().lower()
+            correct_norm = question.correct_answer.strip().lower()
+            is_correct = answer_text_norm == correct_norm
+            score = 1.0 if is_correct else 0.0
+        elif question.q_type.value in ("voice", "drawing", "scale"):
+            if question.q_type.value == "scale" and answer.answer_text is not None:
+                try:
+                    raw_val = float(answer.answer_text)
+                    score = min(max(raw_val / 10.0, 0.0), 1.0)
+                    is_correct = score >= 0.5
+                except ValueError:
+                    score = 0.0
+                    is_correct = False
+
+    # Store original question_id in answer_data
+    answer_data_with_id = answer.answer_data or {}
+    answer_data_with_id["original_question_id"] = original_question_id
 
     response = AssessmentResponse(
         session_id=session_id,
-        question_id=answer.question_id,
+        question_id=final_question_id,
         answer_text=answer.answer_text,
-        answer_data=answer.answer_data,
+        answer_data=answer_data_with_id,
         reaction_time_ms=answer.reaction_time_ms,
         is_correct=is_correct,
         score=score,
@@ -186,8 +213,8 @@ def submit_answer(db: Session, session_id: int, answer: AnswerSubmit) -> Assessm
 
 def complete_session(db: Session, session_id: int) -> Dict[str, Any]:
     """
-    Mark session as completed, enqueue Celery analysis task.
-    Returns dict with task_id.
+    Mark session as completed, run AI analysis synchronously.
+    Returns dict with analysis result.
     """
     session = db.query(AssessmentSession).filter(AssessmentSession.id == session_id).first()
     if session is None:
@@ -214,20 +241,146 @@ def complete_session(db: Session, session_id: int) -> Dict[str, Any]:
             detail="Cannot complete session with no answers submitted",
         )
 
-    # Import here to avoid circular imports at module load time
-    from app.tasks.analysis import analyze_session_task
-
-    # Enqueue the Celery analysis task
-    task = analyze_session_task.delay(session_id)
-
     # Update session status
     session.status = SessionStatus.completed
     session.completed_at = datetime.utcnow()
-    session.task_id = task.id
     db.commit()
     db.refresh(session)
 
-    return {"task_id": task.id, "session_id": session_id, "status": "completed"}
+    # Try to run AI analysis asynchronously using Celery
+    # Fall back to immediate simple analysis if Celery/Redis is not available
+    try:
+        from app.tasks.analysis import analyze_session_task
+        import redis
+        
+        # Test Redis connection before sending task
+        try:
+            r = redis.Redis(host='localhost', port=6379, db=0, socket_timeout=2)
+            r.ping()
+            # Redis is available, send to Celery
+            task = analyze_session_task.delay(session_id)
+            session.task_id = task.task_id
+            db.commit()
+            return {
+                "task_id": session.task_id,
+                "session_id": session_id,
+                "status": "pending",
+                "message": "Assessment completed, analysis in progress"
+            }
+        except (redis.ConnectionError, redis.TimeoutError):
+            # Redis not available, fall back to simple analysis
+            print("Redis not available, using fallback analysis")
+            raise Exception("Redis not available")
+    except Exception as e:
+        # If analysis fails, create a fallback result based on simple scoring
+        print(f"AI analysis failed, creating fallback result: {str(e)}")
+        session.task_id = "sync_task_" + str(session_id) + "_fallback"
+        
+        # Create fallback result using simple MMSE-like scoring
+        responses = db.query(AssessmentResponse).filter(AssessmentResponse.session_id == session_id).all()
+        questions = db.query(Question).all()
+        question_dict = {q.id: q for q in questions}
+        
+        # Calculate simple score (correct answers count)
+        correct_count = 0
+        total_possible = 0
+        
+        for resp in responses:
+            q = question_dict.get(resp.question_id)
+            if q and hasattr(q, 'correct_answer') and q.correct_answer:
+                total_possible += 1
+                answer_text = resp.answer_text or str(resp.answer_data.get('answer_value', '') if isinstance(resp.answer_data, dict) else '')
+                if str(answer_text).strip() == str(q.correct_answer).strip():
+                    correct_count += 1
+        
+        # Calculate MMSE-like score (0-30 scale)
+        mmse_score = round((correct_count / max(total_possible, 1)) * 30)
+        
+        # Determine risk level based on MMSE score (following medical standards)
+        # MMSE: 27-30 = normal, 21-26 = mild cognitive impairment, 10-20 = moderate, <10 = severe
+        if mmse_score >= 27:
+            risk_level = 'normal'
+        elif mmse_score >= 21:
+            risk_level = 'mild_risk'
+        elif mmse_score >= 10:
+            risk_level = 'moderate_risk'
+        else:
+            risk_level = 'high_risk'
+        
+        # Calculate probabilities based on MMSE score
+        # Normal cognition probability (higher = better)
+        nc_prob = min(1.0, max(0.0, mmse_score / 30))
+        
+        # MCI (Mild Cognitive Impairment) probability
+        if mmse_score >= 27:
+            mci_prob = 0.05  # Low probability when normal
+        elif mmse_score >= 21:
+            mci_prob = min(1.0, max(0.0, (27 - mmse_score) / 6 * 0.6 + 0.1))  # 10%-70% for MCI range
+        elif mmse_score >= 10:
+            mci_prob = min(1.0, max(0.0, (20 - mmse_score) / 10 * 0.3 + 0.5))  # 50%-80% for moderate
+        else:
+            mci_prob = 0.7  # High probability for severe
+        
+        # AD (Alzheimer's Disease) probability
+        if mmse_score >= 27:
+            ad_prob = 0.02  # Very low probability when normal
+        elif mmse_score >= 21:
+            ad_prob = min(1.0, max(0.0, (27 - mmse_score) / 6 * 0.15 + 0.02))  # 2%-17% for MCI range
+        elif mmse_score >= 10:
+            ad_prob = min(1.0, max(0.0, (20 - mmse_score) / 10 * 0.3 + 0.15))  # 15%-45% for moderate
+        else:
+            ad_prob = min(1.0, max(0.0, (10 - mmse_score) / 10 * 0.4 + 0.45))  # 45%-85% for severe
+        
+        # Create fallback assessment result
+        fallback_result = AssessmentResult(
+            session_id=session_id,
+            risk_level=risk_level,
+            nc_probability=nc_prob,
+            mci_probability=mci_prob,
+            ad_probability=ad_prob,
+            mmse_score=mmse_score,
+            domain_scores={
+                'memory': round(mmse_score * 0.2),
+                'orientation': round(mmse_score * 0.33),
+                'language': round(mmse_score * 0.27),
+                'attention': round(mmse_score * 0.17),
+                'visuospatial': 1 if mmse_score >= 20 else 0,
+                'executive': 0,
+            },
+            shap_values={
+                'model_confidence': 0.6,
+                'modality_quality': {'questionnaire': {'available': True, 'quality': 0.7}},
+                'modality_contributions': {'questionnaire': 1.0},
+                'top_factors': ['问卷答题表现'],
+                'data_quality_flag': 'warning',
+                'model_name': 'fallback_rule_engine',
+                'model_strategy': 'rule_based',
+            },
+            recommendation=f"评估完成，MMSE得分：{mmse_score}/30。风险等级：{risk_level}。建议定期复查。"
+        )
+        
+        db.add(fallback_result)
+        db.commit()
+        db.refresh(fallback_result)
+        
+        result_dict = {
+            "result_id": fallback_result.id,
+            "session_id": session_id,
+            "risk_level": risk_level,
+            "nc_probability": nc_prob,
+            "mci_probability": mci_prob,
+            "ad_probability": ad_prob,
+            "mmse_score": mmse_score,
+            "domain_scores": fallback_result.domain_scores,
+        }
+        
+        return {
+            "task_id": session.task_id,
+            "session_id": session_id,
+            "status": "completed",
+            "analysis_result": result_dict,
+            "fallback": True
+        }
 
 
 def pause_session(db: Session, session_id: int) -> Dict[str, Any]:
@@ -356,8 +509,18 @@ def get_result(db: Session, session_id: int) -> Optional[AssessmentResult]:
         .filter(AssessmentResult.session_id == session_id)
         .first()
     )
-    if result is not None and isinstance(result.shap_values, dict):
-        explainability = result.shap_values
+    if result is not None:
+        # Handle both dict and string (JSON) formats for shap_values
+        shap_values = result.shap_values
+        if isinstance(shap_values, str):
+            import json
+            try:
+                shap_values = json.loads(shap_values)
+            except (json.JSONDecodeError, TypeError):
+                shap_values = {}
+        
+        explainability = shap_values if isinstance(shap_values, dict) else {}
+        
         # Expose frequently used explainability fields as top-level response attributes.
         result.model_confidence = explainability.get("model_confidence")
         result.modality_quality = explainability.get("modality_quality")

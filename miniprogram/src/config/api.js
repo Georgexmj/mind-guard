@@ -3,7 +3,7 @@ const FORCE_LOCAL_API_STORAGE_KEY = 'mindguard_force_local_api'
 const DEFAULT_DEV_API_BASE_URL = 'http://127.0.0.1:30001/api/v1'
 const DEFAULT_TRIAL_API_BASE_URL = 'https://api.yishouxinan.site/api/v1'
 const DEFAULT_RELEASE_API_BASE_URL = 'https://api.yishouxinan.site/api/v1'
-const DEV_FALLBACK_API_BASE_URLS = ['http://127.0.0.1:8000/api/v1']
+const DEV_FALLBACK_API_BASE_URLS = ['http://127.0.0.1:30001/api/v1']
 
 const NODE_ENV = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV) || ''
 
@@ -63,9 +63,8 @@ function getForceLocalApiFlag() {
 }
 
 function isLocalDevtoolsDebug(stage) {
-  // Default strategy: always use online domain.
-  // Only when explicitly enabled (env/storage flag), local devtools uses localhost.
-  return stage === 'develop' && getPlatform() === 'devtools' && getForceLocalApiFlag()
+  // Use local API by default in devtools for development
+  return stage === 'develop' && getPlatform() === 'devtools'
 }
 
 function getEnvApiBaseUrlByStage(stage) {
@@ -116,42 +115,15 @@ function uniqBaseUrls(urls) {
 }
 
 export function getApiBaseUrlCandidates() {
-  const stage = getRuntimeStage()
-  const stored = normalizeBaseUrl(uni.getStorageSync(API_BASE_URL_STORAGE_KEY))
-  const envUrl = normalizeBaseUrl(getEnvApiBaseUrlByStage(stage))
-  const defaultUrl = normalizeBaseUrl(getDefaultApiBaseUrlByStage(stage))
-  const useOnlineDomain = !isLocalDevtoolsDebug(stage)
-
-  // Clear old stored URL if it contains 8001 (legacy port)
-  if (stored && stored.includes('8001')) {
-    uni.removeStorageSync(API_BASE_URL_STORAGE_KEY)
-  }
-
-  if (useOnlineDomain) {
-    // Except local IDE debugging, enforce online domain and ignore dev-stored overrides.
-    const onlineEnv = normalizeBaseUrl(
-      getEnvValue([
-        'UNI_API_BASE_URL_RELEASE',
-        'VITE_API_BASE_URL_RELEASE',
-        'UNI_API_BASE_URL_TRIAL',
-        'VITE_API_BASE_URL_TRIAL',
-        'UNI_API_BASE_URL',
-        'VITE_API_BASE_URL',
-      ])
-    )
-    const onlineDefault = normalizeBaseUrl(DEFAULT_RELEASE_API_BASE_URL)
-    if (onlineEnv || onlineDefault) {
-      return uniqBaseUrls([onlineEnv, onlineDefault])
-    }
-    return uniqBaseUrls([envUrl, defaultUrl])
-  }
-
-  return uniqBaseUrls([defaultUrl, envUrl, ...DEV_FALLBACK_API_BASE_URLS])
+  // 强制使用本地 API 进行开发调试
+  // 在微信开发者工具中，始终使用本地后端服务
+  // 只返回正确的本地后端地址，避免超时问题
+  return uniqBaseUrls(DEV_FALLBACK_API_BASE_URLS)
 }
 
 export function getApiBaseUrl() {
-  const candidates = getApiBaseUrlCandidates()
-  return candidates[0] || normalizeBaseUrl(getDefaultApiBaseUrlByStage(getRuntimeStage()))
+  // Force local API for development
+  return 'http://127.0.0.1:30001/api/v1'
 }
 
 export function setApiBaseUrl(url) {

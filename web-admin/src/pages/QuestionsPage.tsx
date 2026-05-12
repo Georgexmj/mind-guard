@@ -34,10 +34,20 @@ import {
   getQuestions,
   updateQuestion,
 } from '../services/api'
-import { useAuthStore } from '../store/auth'
+import type { User } from '../types'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
+
+// 直接从 localStorage 获取用户信息
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem('mindguard-user')
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
 
 interface Question {
   id: number
@@ -93,7 +103,7 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 export default function QuestionsPage() {
-  const user = useAuthStore((state) => state.user)
+  const user = getUserFromStorage()
   const canManageQuestions = user?.role === 'admin'
 
   const [questions, setQuestions] = useState<Question[]>([])
@@ -354,7 +364,7 @@ export default function QuestionsPage() {
         </div>
       </div>
 
-      <Card className="mg-panel-card" bodyStyle={{ padding: '20px 24px' }}>
+      <Card className="mg-panel-card" styles={{ body: { padding: '20px 24px' } }}>
         <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={6}>
             <Select

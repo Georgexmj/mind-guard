@@ -103,16 +103,37 @@ def _can_access_session(db: Session, current_user: User, session: AssessmentSess
 
 @router.post("/sessions", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
 def create_session(
-    _: SessionCreate = SessionCreate(),
+    session_create: SessionCreate = SessionCreate(),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Determine the target user ID for the assessment
+    target_user_id = current_user.id
+    
+    # If family member, they must specify an elder_id to assess
     if current_user.role == UserRole.family:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Family members cannot start assessment sessions",
+        if session_create.elder_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Family members must specify an elder_id to start an assessment session",
+            )
+        # Verify family member has permission to assess this elder
+        relation = (
+            db.query(UserRelationship)
+            .filter(
+                UserRelationship.family_id == current_user.id,
+                UserRelationship.elder_id == session_create.elder_id,
+            )
+            .first()
         )
-    return assessment_service.create_session(db, current_user.id)
+        if not relation:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to assess this elder",
+            )
+        target_user_id = session_create.elder_id
+    
+    return assessment_service.create_session(db, target_user_id)
 
 
 @router.get("/sessions", response_model=List[SessionOut])
@@ -122,7 +143,10 @@ def list_sessions(
     elder_id: Optional[int] = Query(None),
 ):
     if current_user.role in (UserRole.admin, UserRole.doctor):
-        return db.query(AssessmentSession).order_by(AssessmentSession.created_at.desc()).all()
+        query = db.query(AssessmentSession)
+        if elder_id is not None:
+            query = query.filter(AssessmentSession.user_id == elder_id)
+        return query.order_by(AssessmentSession.created_at.desc()).all()
     
     if current_user.role == UserRole.elder:
         return assessment_service.get_sessions_by_user(db, current_user.id)
@@ -474,61 +498,70 @@ def get_family_readable_report(
     if not result:
         raise HTTPException(status_code=404, detail="Assessment result not found")
 
-    risk_level = result.risk_level.value if hasattr(result.risk_level, "value") else str(result.risk_level)
-    rows = (
-        db.query(AssessmentResult)
-        .join(AssessmentSession, AssessmentResult.session_id == AssessmentSession.id)
-        .filter(AssessmentSession.user_id == session.user_id)
-        .order_by(AssessmentResult.created_at.desc())
-        .limit(2)
-        .all()
-    )
-    latest = rows[0] if rows else None
-    previous = rows[1] if len(rows) > 1 else None
-    previous_risk = (
-        previous.risk_level.value if previous and hasattr(previous.risk_level, "value") else (str(previous.risk_level) if previous else None)
-    )
-    latest_risk = (
-        latest.risk_level.value if latest and hasattr(latest.risk_level, "value") else (str(latest.risk_level) if latest else risk_level)
-    )
-    risk_change = _calc_risk_change(latest_risk, previous_risk)
+    elder = db.query(User).filter(User.id == session.user_id).first()
+    elder_name = elder.name if elder else "未知"
 
-    next_date = suggest_next_reassessment_date(risk_level, result.created_at.date()).isoformat()
+    risk_level = result.risk_level.value if hasattr(result.risk_level, "value") else str(result.risk_level)
+    
+    risk_level_descriptions = {
+        "normal": "认知正常",
+        "mild_risk": "轻度认知风险",
+        "moderate_risk": "中度认知风险",
+        "high_risk": "高认知风险",
+    }
+    risk_level_description = risk_level_descriptions.get(risk_level, "未知")
 
     summary_map = {
-        "normal": "\u8fd9\u6b21\u8bc4\u4f30\u63d0\u793a\u6574\u4f53\u8ba4\u77e5\u72b6\u6001\u8f83\u5e73\u7a33\u3002",
-        "mild_risk": "\u8fd9\u6b21\u8bc4\u4f30\u63d0\u793a\u5b58\u5728\u8f7b\u5ea6\u8ba4\u77e5\u98ce\u9669\uff0c\u5efa\u8bae\u5c3d\u5feb\u590d\u8bc4\u3002",
-        "high_risk": "\u8fd9\u6b21\u8bc4\u4f30\u63d0\u793a\u8f83\u9ad8\u98ce\u9669\uff0c\u5efa\u8bae\u5c3d\u5feb\u5c31\u533b\u8fdb\u4e00\u6b65\u68c0\u67e5\u3002",
-    }
-    interpretation_map = {
-        "normal": "\u76ee\u524d\u66f4\u63a5\u8fd1\u6b63\u5e38\u8303\u56f4\uff0c\u7ee7\u7eed\u4fdd\u6301\u89c4\u5f8b\u4f5c\u606f\u548c\u8bad\u7ec3\u5373\u53ef\u3002",
-        "mild_risk": "\u53ef\u80fd\u6709\u65e9\u671f\u4e0b\u964d\u4fe1\u53f7\uff0c\u901a\u8fc7\u6301\u7eed\u5e72\u9884\u548c\u968f\u8bbf\uff0c\u5f88\u591a\u60c5\u51b5\u53ef\u4ee5\u6539\u5584\u3002",
-        "high_risk": "\u5f53\u524d\u98ce\u9669\u8f83\u9ad8\uff0c\u8bf7\u5bb6\u5c5e\u5c3d\u5feb\u966a\u540c\u5c31\u8bca\uff0c\u6309\u533b\u5631\u5b8c\u6210\u8fdb\u4e00\u6b65\u8bc4\u4f30\u3002",
+        "normal": "本次评估显示整体认知状态较稳定。",
+        "mild_risk": "本次评估提示存在轻度认知风险，建议尽快复评。",
+        "moderate_risk": "本次评估提示存在中度认知风险，建议密切关注并尽快就医。",
+        "high_risk": "本次评估提示较高风险，建议尽快就医进行进一步检查。",
     }
 
-    tips = [
-        "\u6bcf\u5929\u4fdd\u630130\u5206\u949f\u8f7b\u4e2d\u5ea6\u6d3b\u52a8\uff08\u6b65\u884c/\u4f53\u64cd\uff09\u3002",
-        "\u6bcf\u5929\u8fdb\u884c15-20\u5206\u949f\u8ba4\u77e5\u8bad\u7ec3\uff08\u8bb0\u5fc6\u6216\u8ba1\u7b97\u7ec3\u4e60\uff09\u3002",
-        "\u89c4\u5f8b\u4f5c\u606f\uff0c\u5c3d\u91cf\u5728\u540c\u4e00\u65f6\u95f4\u5c31\u5bdd\u548c\u8d77\u5e8a\u3002",
-        "\u5bb6\u5c5e\u6bcf\u5468\u81f3\u5c11\u4e00\u6b21\u56de\u987e\u6253\u5361\u60c5\u51b5\u5e76\u6c9f\u901a\u3002",
+    interpretation_map = {
+        "normal": "目前更接近正常范围，继续保持规律作息和训练即可。",
+        "mild_risk": "可能有早期下降信号，通过持续干预和随访，很多情况可以改善。",
+        "moderate_risk": "认知功能有明显下降，需要加强家庭支持和专业干预。",
+        "high_risk": "当前风险较高，请家属尽快陪同就诊，按医嘱完成进一步评估。",
+    }
+
+    recommendations = [
+        "每天保持30分钟轻中度活动（步行/体操）。",
+        "每天进行15-20分钟认知训练（记忆或计算练习）。",
+        "规律作息，尽量在同一时间就寝和起床。",
+        "家属每周至少一次回访打卡情况并沟通。",
     ]
-    warning_signs = [
-        "\u8fd1\u671f\u8ff7\u8def\u3001\u9057\u5fd8\u660e\u663e\u52a0\u91cd\u3002",
-        "\u65e5\u5e38\u751f\u6d3b\u80fd\u529b\u4e0b\u964d\uff08\u5982\u505a\u996d\u3001\u7528\u836f\uff09\u3002",
-        "\u60c5\u7eea\u6216\u884c\u4e3a\u53d8\u5316\u660e\u663e\uff08\u70e6\u8e81/\u6de1\u6f20\uff09\u3002",
-    ]
+
+    next_date = suggest_next_reassessment_date(risk_level, result.created_at.date())
+    next_assessment_suggestion = f"建议于 {next_date.strftime('%Y年%m月%d日')} 前进行下一次评估"
+
+    domain_scores = result.domain_scores if result.domain_scores else {
+        "memory": 0.0,
+        "orientation": 0.0,
+        "language": 0.0,
+        "attention": 0.0,
+        "visuospatial": 0.0,
+        "executive": 0.0,
+    }
+
+    top_concerns = []
+    if result.mmse_score and result.mmse_score < 24:
+        top_concerns.append("记忆力下降")
+    if result.mmse_score and result.mmse_score < 20:
+        top_concerns.append("注意力不集中")
 
     return FamilyReadableReportOut(
-        elder_id=session.user_id,
-        session_id=session.id,
-        assessed_at=result.created_at,
+        elder_name=elder_name,
+        assessment_date=result.created_at.strftime('%Y年%m月%d日'),
         risk_level=risk_level,
-        risk_change=risk_change,
-        next_reassessment_date=next_date,
-        summary=summary_map.get(risk_level, summary_map["mild_risk"]),
-        plain_interpretation=interpretation_map.get(risk_level, interpretation_map["mild_risk"]),
-        daily_tips=tips,
-        warning_signs=warning_signs,
+        risk_level_description=risk_level_description,
+        mmse_score=result.mmse_score,
+        moca_score=None,
+        domain_scores=domain_scores,
+        top_concerns=top_concerns if top_concerns else ["暂无明显异常"],
+        recommendations=recommendations,
+        next_assessment_suggestion=next_assessment_suggestion,
+        disclaimer="本报告仅供参考，不能替代专业医疗诊断。如有疑问，请咨询专业医生。",
     )
 
 

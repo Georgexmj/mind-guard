@@ -5,7 +5,7 @@ import { cors } from 'hono/cors'
 const app = new Hono()
 
 const PORT = Number(process.env.BFF_PORT || 8787)
-const API_BASE = process.env.API_BASE || 'http://localhost:8000/api/v1'
+const API_BASE = process.env.API_BASE || 'http://localhost:30001/api/v1'
 
 app.use('*', cors())
 

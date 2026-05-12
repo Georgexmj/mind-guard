@@ -20,17 +20,19 @@ export function request(options) {
     const send = () => {
       const baseUrl = candidates[index]
       const url = `${baseUrl}${options.url}`
+      console.log('Sending request - URL:', url, 'Method:', options.method, 'Has token:', !!auth.token, 'Token length:', auth.token?.length || 0)
 
       wx.request({
         url,
         method: options.method || 'GET',
         data: options.data,
-        timeout: options.timeout || 20000,
+        timeout: options.timeout || 60000,
         header: {
           'Content-Type': 'application/json',
           ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
         },
         success: (res) => {
+          console.log('Request success - URL:', url, 'Status:', res.statusCode, 'Data:', res.data)
           // Auto-fallback for local dev when current base URL points to a different service.
           if (res.statusCode === 404 && index < candidates.length - 1) {
             index += 1

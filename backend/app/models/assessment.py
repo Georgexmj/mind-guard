@@ -34,6 +34,7 @@ class SessionStatus(str, enum.Enum):
 class RiskLevel(str, enum.Enum):
     normal = "normal"
     mild_risk = "mild_risk"
+    moderate_risk = "moderate_risk"
     high_risk = "high_risk"
 
 

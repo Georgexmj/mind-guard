@@ -199,34 +199,99 @@ export default function DashboardPage() {
 
   const trendOption = useMemo(
     () => ({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-      grid: { left: 30, right: 16, top: 20, bottom: 24 },
+      tooltip: { 
+        trigger: 'axis', 
+        axisPointer: { 
+          type: 'cross',
+          lineStyle: {
+            color: 'rgba(15, 118, 110, 0.3)',
+            width: 1,
+            type: 'dashed'
+          },
+          crossStyle: {
+            color: '#0f766e'
+          }
+        },
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: '#e2e8f0',
+        borderWidth: 1,
+        textStyle: {
+          color: '#334155'
+        },
+        formatter: (params: any) => {
+          const data = params[0]
+          return `<div style="padding: 8px;">
+            <div style="font-weight: 600; color: #0f766e; margin-bottom: 4px;">${data.name}</div>
+            <div style="color: #64748b;">评估次数：<span style="color: #0f766e; font-weight: 600;">${data.value} 次</span></div>
+          </div>`
+        }
+      },
+      grid: { left: 45, right: 20, top: 30, bottom: 35 },
       xAxis: {
         type: 'category',
         data: trend.map((t) => t.month),
-        axisLine: { lineStyle: { color: '#d8e3ea' } },
-        axisLabel: { color: '#698294' },
+        axisLine: { 
+          lineStyle: { 
+            color: '#e2e8f0',
+            width: 1
+          } 
+        },
+        axisTick: {
+          show: false
+        },
+        axisLabel: { 
+          color: '#64748b',
+          fontSize: 12,
+          fontWeight: 500
+        },
       },
       yAxis: {
         type: 'value',
-        splitLine: { lineStyle: { color: 'rgba(115, 142, 160, 0.17)' } },
-        axisLabel: { color: '#698294' },
+        min: 0,
+        max: (value: any) => Math.max(value.max * 1.2, 10),
+        splitLine: { 
+          lineStyle: { 
+            color: 'rgba(226, 232, 240, 0.6)',
+            type: 'dashed'
+          } 
+        },
+        axisLine: {
+          show: true,
+          lineStyle: {
+            color: '#e2e8f0'
+          }
+        },
+        axisTick: {
+          show: false
+        },
+        axisLabel: { 
+          color: '#64748b',
+          fontSize: 12,
+          formatter: '{value} 次'
+        },
       },
       series: [
         {
           data: trend.map((t) => t.count),
           type: 'line',
           smooth: true,
+          smoothMonotone: 'x',
           symbol: 'circle',
-          symbolSize: 8,
+          symbolSize: 10,
+          symbolOffset: [0, 0],
           lineStyle: {
             color: '#0f766e',
-            width: 3,
+            width: 4,
+            shadowColor: 'rgba(15, 118, 110, 0.4)',
+            shadowBlur: 10,
+            shadowOffsetY: 5,
           },
           itemStyle: {
-            color: '#0f766e',
-            borderColor: '#fff',
-            borderWidth: 2,
+            color: '#ffffff',
+            borderColor: '#0f766e',
+            borderWidth: 3,
+            shadowColor: 'rgba(15, 118, 110, 0.5)',
+            shadowBlur: 8,
           },
           areaStyle: {
             color: {
@@ -236,11 +301,28 @@ export default function DashboardPage() {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: 'rgba(15, 118, 110, 0.26)' },
+                { offset: 0, color: 'rgba(15, 118, 110, 0.35)' },
+                { offset: 0.5, color: 'rgba(15, 118, 110, 0.15)' },
                 { offset: 1, color: 'rgba(15, 118, 110, 0)' },
               ],
             },
           },
+          label: {
+            show: true,
+            position: 'top',
+            offset: [0, -8],
+            color: '#0f766e',
+            fontSize: 12,
+            fontWeight: 600,
+            formatter: '{c}',
+          },
+          emphasis: {
+            scale: true,
+            itemStyle: {
+              borderWidth: 4,
+              shadowBlur: 15,
+            }
+          }
         },
       ],
     }),
@@ -250,7 +332,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="dashboard-loading">
-        <Spin size="large" tip="正在加载看板..." />
+        <Spin size="large" />
       </div>
     )
   }
@@ -491,7 +573,7 @@ export default function DashboardPage() {
                       <Space size={8}>
                         <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
                         {item.risk_level && (
-                          <RiskBadge riskLevel={item.risk_level as 'normal' | 'mild_risk' | 'high_risk'} />
+                          <RiskBadge riskLevel={item.risk_level as 'normal' | 'mild_risk' | 'moderate_risk' | 'high_risk'} />
                         )}
                       </Space>
                     </div>

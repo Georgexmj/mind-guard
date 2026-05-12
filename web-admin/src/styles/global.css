@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --mg-bg-page: #f4f6fb;
   --mg-bg-soft: #eef2f8;
   --mg-surface: #ffffff;
@@ -173,6 +173,15 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.mg-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 16px;
+  color: #8a94a6;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react'
+import { useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Typography } from 'antd'
 import type { MenuProps } from 'antd'
@@ -14,7 +14,6 @@ import {
   LineChartOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useAuthStore } from '../store/auth'
 import type { User } from '../types'
 import '../styles/layout.css'
 
@@ -47,10 +46,29 @@ const roleLabelMap: Record<UserRole, string> = {
   family: '家属用户',
 }
 
+// 直接从 localStorage 获取用户信息
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem('mindguard-user')
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+// 直接清除认证信息
+const logoutFromStorage = (): void => {
+  localStorage.removeItem('mindguard-user')
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+}
+
 export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout } = useAuthStore()
+  
+  // 直接从 localStorage 获取用户信息
+  const user = getUserFromStorage()
   const role = user?.role
 
   const visibleMenuItems = useMemo(
@@ -76,7 +94,7 @@ export default function Layout() {
     ],
     onClick: ({ key }) => {
       if (key === 'logout') {
-        logout()
+        logoutFromStorage()
         navigate('/login')
       }
     },

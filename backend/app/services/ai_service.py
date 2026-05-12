@@ -27,7 +27,14 @@ from app.models.assessment import (
 from app.models.rag import KnowledgeType
 from app.services.deep_model_service import get_deep_model_service
 from app.services.notification_service import create_assessment_notifications
-from app.services.rag_service import rag_service
+
+# Try to import RAG service, gracefully handle if faiss is not available
+try:
+    from app.services.rag_service import rag_service
+    RAG_AVAILABLE = True
+except ImportError:
+    rag_service = None
+    RAG_AVAILABLE = False
 
 
 DOMAIN_MAX_MMSE_POINTS = {
@@ -704,6 +711,10 @@ def _collect_rag_knowledge_ids(
     Retrieve knowledge ids from FAISS RAG index for explainable traceability.
     Best-effort: any retrieval/runtime error falls back to empty ids.
     """
+    # Return empty list if RAG is not available (faiss not installed)
+    if not RAG_AVAILABLE:
+        return []
+    
     out: List[int] = []
     seen = set()
     try:

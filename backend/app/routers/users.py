@@ -1,11 +1,13 @@
 from typing import List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.core.security import get_current_user
 from app.core.deps import require_role
 from app.models.user import User, UserRole, UserRelationship, WechatBinding
+from app.models.assessment import AssessmentSession, AssessmentResult
 from app.schemas.user import (
     BindFamilyRequest,
     FamilyRelationshipOut,
@@ -71,7 +73,7 @@ def list_users(
     return users
 
 
-@router.get("/elders", response_model=List[UserOut])
+@router.get("/elders")
 def list_elders(
     community_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
@@ -80,12 +82,57 @@ def list_elders(
     current_user: User = Depends(require_role(UserRole.admin, UserRole.doctor)),
 ):
     """List elder users only. For doctor/admin dashboard."""
-    query = db.query(User).filter(User.role == UserRole.elder)
+    # 获取每个老人的最近评估会话
+    subq_latest = (
+        db.query(
+            AssessmentSession.user_id,
+            func.max(AssessmentSession.completed_at).label("max_completed_at"),
+        )
+        .filter(AssessmentSession.status == "completed")
+        .group_by(AssessmentSession.user_id)
+        .subquery()
+    )
+
+    # 获取最近评估的详细信息
+    subq_session = (
+        db.query(
+            AssessmentSession.user_id,
+            AssessmentSession.completed_at.label("last_assessment"),
+            AssessmentResult.risk_level.label("risk_level"),
+        )
+        .outerjoin(AssessmentResult, AssessmentSession.id == AssessmentResult.session_id)
+        .join(subq_latest, 
+            (AssessmentSession.user_id == subq_latest.c.user_id) & 
+            (AssessmentSession.completed_at == subq_latest.c.max_completed_at)
+        )
+        .subquery()
+    )
+
+    query = (
+        db.query(
+            User,
+            subq_session.c.last_assessment,
+            subq_session.c.risk_level,
+        )
+        .outerjoin(subq_session, User.id == subq_session.c.user_id)
+        .filter(User.role == UserRole.elder)
+    )
+    
     if community_id is not None:
         query = query.filter(User.community_id == community_id)
 
     offset = (page - 1) * page_size
-    elders = query.order_by(User.created_at.desc()).offset(offset).limit(page_size).all()
+    results = query.order_by(User.created_at.desc()).offset(offset).limit(page_size).all()
+    
+    # 构建返回数据
+    elders = []
+    for user, last_assessment, risk_level in results:
+        user_dict = user.__dict__.copy()
+        user_dict.pop('_sa_instance_state', None)
+        user_dict['last_assessment'] = last_assessment
+        user_dict['risk_level'] = risk_level if risk_level else None
+        elders.append(user_dict)
+    
     return elders
 
 
@@ -122,7 +169,7 @@ def bind_family(
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Family relationship already exists",
+            detail="家庭关系已存在",
         )
 
     relationship = UserRelationship(
@@ -339,7 +386,7 @@ def remove_wechat_binding(
     return FamilyUnbindOut(deleted_id=binding_id, message="Wechat binding removed")
 
 
-@router.get("/{user_id}", response_model=UserOut)
+@router.get("/{user_id}")
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -358,7 +405,39 @@ def get_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User {user_id} not found",
         )
-    return user
+
+    # 获取最近的评估信息
+    last_assessment = None
+    risk_level = None
+    
+    if user.role == UserRole.elder:
+        # 获取最近完成的评估会话
+        latest_session = (
+            db.query(AssessmentSession)
+            .filter(AssessmentSession.user_id == user_id)
+            .filter(AssessmentSession.status == "completed")
+            .order_by(AssessmentSession.completed_at.desc())
+            .first()
+        )
+        
+        if latest_session:
+            last_assessment = latest_session.completed_at
+            # 获取评估结果
+            result = (
+                db.query(AssessmentResult)
+                .filter(AssessmentResult.session_id == latest_session.id)
+                .first()
+            )
+            if result:
+                risk_level = result.risk_level.value
+
+    # 构建返回数据
+    user_dict = user.__dict__.copy()
+    user_dict.pop('_sa_instance_state', None)
+    user_dict['last_assessment'] = last_assessment
+    user_dict['risk_level'] = risk_level
+    
+    return user_dict
 
 
 @router.put("/{user_id}", response_model=UserOut)

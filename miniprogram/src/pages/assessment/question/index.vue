@@ -422,26 +422,15 @@ function resetAnswerState() {
   drawingAnswerPayload.value = null
 }
 
-async function submitAnswerToBackend(answerData) {
-  if (submitting.value) return
-  submitting.value = true
-  try {
-    const sessionId = assessmentStore.currentSessionId
-    const reactionTime = assessmentStore.getReactionTime()
-    const payload = {
-      question_id: currentQuestion.value?.id,
-      answer_text: answerData.answer_value != null ? String(answerData.answer_value) : null,
-      answer_data: answerData,
-      reaction_time_ms: reactionTime,
-    }
-    api.submitAnswer(sessionId, payload).catch(() => {})
-    assessmentStore.submitAnswer(payload)
-  } catch (err) {
-    console.error('Submit answer error:', err)
-    assessmentStore.submitAnswer({ question_id: currentQuestion.value?.id })
-  } finally {
-    submitting.value = false
+function submitAnswerToBackend(answerData) {
+  const reactionTime = assessmentStore.getReactionTime()
+  const payload = {
+    question_id: currentQuestion.value?.id,
+    answer_text: answerData.answer_value != null ? String(answerData.answer_value) : null,
+    answer_data: answerData,
+    reaction_time_ms: reactionTime,
   }
+  assessmentStore.submitAnswer(payload)
 }
 
 async function selectOption(idx, option) {
@@ -553,29 +542,114 @@ async function handleComplete() {
   wx.showLoading({ title: '提交中...', mask: true })
   try {
     const sessionId = assessmentStore.currentSessionId
-    let taskId = null
+    console.log('handleComplete - sessionId:', sessionId, 'Type:', typeof sessionId)
+    const answers = assessmentStore.answers
+    console.log('handleComplete - answers count:', answers.length)
+    console.log('handleComplete - answers array:', JSON.stringify(answers))
     
+    // 确保 sessionId 是数字类型
+    const numericSessionId = Number(sessionId)
+    console.log('Numeric sessionId:', numericSessionId, 'Type:', typeof numericSessionId)
+    
+    if (isNaN(numericSessionId) || numericSessionId <= 0) {
+      throw new Error(`Invalid sessionId: ${sessionId}`)
+    }
+    
+    // 先批量提交所有答案
+    let allAnswersSubmitted = true
+    console.log('questions array length:', assessmentStore.questions.length)
+    console.log('questions array:', JSON.stringify(assessmentStore.questions.slice(0, 2)))
+    
+    for (let i = 0; i < answers.length; i++) {
+      const answer = answers[i]
+      try {
+        // 根据 question_index 获取对应的 question_id
+        const questionIndex = answer.question_index
+        console.log('Answer', i, '- question_index:', questionIndex, 'type:', typeof questionIndex)
+        
+        const numericIndex = parseInt(String(questionIndex), 10)
+        console.log('Numeric index:', numericIndex)
+        
+        const question = assessmentStore.questions[numericIndex]
+        console.log('Question at index:', numericIndex, '=', question ? JSON.stringify(question) : 'undefined')
+        
+        const questionId = question ? parseInt(question.questionId || question.id || '0', 10) : 0
+        
+        console.log('Submitting answer - questionIndex:', questionIndex, 'questionId:', questionId)
+        
+        if (isNaN(questionId) || questionId <= 0) {
+          console.error('Invalid questionId:', questionId)
+          throw new Error(`Invalid questionId for question index ${questionIndex}`)
+        }
+        
+        await api.submitAnswer(numericSessionId, {
+          question_id: String(questionId),  // 后端需要字符串类型
+          answer_text: answer.answer_text || answer.answerText || '',
+          answer_data: answer.answer_data || answer.answerData || null,
+          reaction_time_ms: answer.reaction_time_ms || answer.reactionTime || 0,
+        })
+        console.log('Answer submitted successfully for question:', questionId)
+      } catch (err) {
+        console.error('Submit answer failed:', err)
+        allAnswersSubmitted = false
+        break
+      }
+    }
+    
+    if (!allAnswersSubmitted) {
+      wx.hideLoading()
+      wx.showModal({
+        title: '提交失败',
+        content: '答案提交失败，请检查网络后重试。',
+        showCancel: false,
+        confirmText: '知道了',
+        success: () => {
+          uni.switchTab({ url: '/pages/index/index' })
+        }
+      })
+      return
+    }
+    
+    // 然后调用完成评估
+    let taskId = null
     try {
-      const completeData = await api.completeSession(sessionId)
+      console.log('Completing session:', numericSessionId)
+      const completeData = await api.completeSession(numericSessionId)
       taskId = completeData?.task_id || completeData?.id
+      console.log('Session completed, taskId:', taskId)
     } catch (apiErr) {
-      console.warn('API complete failed, using local data:', apiErr)
-      taskId = 'local_task_' + Date.now()
+      console.error('Complete session API failed:', apiErr)
+      wx.hideLoading()
+      wx.showModal({
+        title: '提交失败',
+        content: '评估完成失败，请检查网络后重试。',
+        showCancel: false,
+        confirmText: '知道了',
+        success: () => {
+          uni.switchTab({ url: '/pages/index/index' })
+        }
+      })
+      return
     }
-
-    if (taskId) {
-      assessmentStore.setTaskId(taskId)
-    }
-
+    
+    assessmentStore.setTaskId(taskId)
+    
     wx.hideLoading()
     uni.redirectTo({
-      url: `/pages/result/index?sessionId=${sessionId}${taskId ? `&taskId=${taskId}` : ''}`,
+      url: `/pages/result/index?sessionId=${numericSessionId}&taskId=${taskId}`,
     })
+    
   } catch (err) {
     wx.hideLoading()
     console.error('Complete session error:', err)
-    uni.redirectTo({
-      url: `/pages/result/index?sessionId=${assessmentStore.currentSessionId}&taskId=local_${Date.now()}`,
+    wx.showModal({
+      title: '提交失败',
+      content: '评估数据提交失败，请检查网络后重试。',
+      showCancel: false,
+      confirmText: '知道了',
+      success: () => {
+        uni.switchTab({ url: '/pages/index/index' })
+      }
     })
   }
 }
@@ -667,38 +741,86 @@ const handleClockDrawCompleted = (data) => {
 }
 
 async function initQuestions() {
+  console.log('initQuestions called')
   if (initializing.value) return
   initializing.value = true
   
-  try {
-    const pages = getCurrentPages()
-    const currentPage = pages[pages.length - 1]
-    const scaleType = currentPage?.options?.scale
-    
-    let questions = defaultQuestions
-    if (scaleType === 'mmse') {
-      const dateData = generateDateBasedQuestions()
-      questions = [
-        dateData.yearQuestion,
-        dateData.monthQuestion,
-        dateData.dateQuestion,
-        dateData.weekdayQuestion,
-        mmseQuestions[2],
-        mmseQuestions[3],
-        mmseQuestions[4]
-      ]
-    } else if (scaleType === 'moca') {
-      questions = mocaQuestions
-    }
-    
-    assessmentStore.startSession('mock_session_' + Date.now())
-    assessmentStore.setQuestions(questions)
-  } catch (err) {
-    console.error('Init questions failed:', err)
-    uni.showToast({ title: '加载题目失败', icon: 'none' })
-  } finally {
-    initializing.value = false
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  const scaleType = currentPage?.options?.scale
+  console.log('scaleType:', scaleType)
+  
+  let localQuestions = defaultQuestions
+  console.log('defaultQuestions length:', defaultQuestions.length)
+  
+  if (scaleType === 'mmse') {
+    const dateData = generateDateBasedQuestions()
+    localQuestions = [
+      dateData.yearQuestion,
+      dateData.monthQuestion,
+      dateData.dateQuestion,
+      dateData.weekdayQuestion,
+      mmseQuestions[2],
+      mmseQuestions[3],
+      mmseQuestions[4]
+    ]
+  } else if (scaleType === 'moca') {
+    localQuestions = mocaQuestions
   }
+  
+  console.log('localQuestions length:', localQuestions.length)
+  
+  // 创建真实的后端会话
+  let sessionId = null
+  try {
+    console.log('Creating session via API...')
+    const sessionData = await api.createSession()
+    console.log('Session API response:', JSON.stringify(sessionData))
+    const idValue = sessionData?.id
+    sessionId = parseInt(idValue || '', 10)
+    console.log('Parsed sessionId:', sessionId, 'Type:', typeof sessionId)
+  } catch (apiErr) {
+    console.error('Create session API failed:', apiErr)
+    initializing.value = false
+    wx.showModal({
+      title: '网络错误',
+      content: '无法连接到服务器，请检查网络后重试。',
+      showCancel: false,
+      confirmText: '知道了',
+      success: () => {
+        uni.navigateBack()
+      }
+    })
+    return
+  }
+  
+  if (!sessionId || isNaN(sessionId)) {
+    console.error('Invalid sessionId:', sessionId)
+    initializing.value = false
+    wx.showModal({
+      title: '创建失败',
+      content: '无法创建评估会话，请重试。',
+      showCancel: false,
+      confirmText: '知道了',
+      success: () => {
+        uni.navigateBack()
+      }
+    })
+    return
+  }
+  
+  // 为每个题目分配整数 ID（从 1 开始）
+  const questionsWithId = localQuestions.map((q, index) => ({
+    ...q,
+    questionId: index + 1  // 分配整数 ID
+  }))
+  
+  // 设置状态
+  assessmentStore.startSession(sessionId)
+  assessmentStore.setQuestions(questionsWithId)
+  
+  initializing.value = false
+  console.log('initQuestions completed, totalQuestions:', assessmentStore.totalQuestions)
 }
 
 onMounted(() => {

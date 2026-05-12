@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Button,
@@ -57,10 +57,18 @@ import type {
   InterventionTop5Recommendation,
   User,
 } from '../types'
-import { useAuthStore } from '../store/auth'
-
 const { Title, Text } = Typography
 const { TextArea } = Input
+
+// 直接从 localStorage 获取用户信息
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem('mindguard-user')
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
 
 interface InterventionPlan {
   id: number
@@ -196,7 +204,7 @@ function normalizeAlert(alert: InterventionAdherenceAlert): InterventionAdherenc
 }
 
 export default function InterventionsPage() {
-  const user = useAuthStore((state) => state.user)
+  const user = getUserFromStorage()
   const canManage = user?.role === 'admin' || user?.role === 'doctor'
   const [searchParams, setSearchParams] = useSearchParams()
   const focusedTicketId = Number(searchParams.get('ticket_id') || 0)
@@ -256,8 +264,8 @@ export default function InterventionsPage() {
   const fetchUsers = useCallback(async () => {
     try {
       const [elderRows, doctorRows] = await Promise.all([
-        getElders({ page: 1, page_size: 300 }),
-        getDoctors({ page: 1, page_size: 300 }),
+        getElders({ page: 1, page_size: 100 }),
+        getDoctors({ page: 1, page_size: 100 }),
       ])
       setElders(Array.isArray(elderRows) ? elderRows : [])
       setDoctors(Array.isArray(doctorRows) ? doctorRows : [])
@@ -979,7 +987,7 @@ export default function InterventionsPage() {
         </div>
       </div>
 
-      <Card className="mg-panel-card" style={{ borderRadius: 14, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '8px 20px 20px' }}>
+      <Card className="mg-panel-card" style={{ borderRadius: 14, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} styles={{ body: { padding: '8px 20px 20px' } }}>
         <Tabs
           activeKey={currentSection}
           onChange={handleSectionChange}

@@ -61,7 +61,7 @@ export default function ElderDashboardPage() {
   if (loading) {
     return (
       <div className="elder-dashboard-loading">
-        <Spin size="large" tip="正在加载老人端看板..." />
+        <Spin size="large" />
       </div>
     )
   }

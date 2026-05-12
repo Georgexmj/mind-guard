@@ -25,9 +25,19 @@ import { downloadDoctorReportPdf, getFamilyReadableReport, getSessionDetail } fr
 import type { AssessmentResult, AssessmentSession, DomainScores } from '../types'
 import RiskBadge from '../components/RiskBadge'
 import CognitiveRadar from '../components/CognitiveRadar'
-import { useAuthStore } from '../store/auth'
+import type { User } from '../types'
 
 const { Title, Text, Paragraph } = Typography
+
+// 直接从 localStorage 获取用户信息
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem('mindguard-user')
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
 
 type SessionDetail = AssessmentSession & {
   result?: AssessmentResult
@@ -35,12 +45,17 @@ type SessionDetail = AssessmentSession & {
 }
 
 type FamilyReportData = {
-  summary: string
-  plain_interpretation: string
-  next_reassessment_date?: string
-  risk_change?: string
-  daily_tips: string[]
-  warning_signs: string[]
+  elder_name: string
+  assessment_date: string
+  risk_level: string
+  risk_level_description: string
+  mmse_score: number | null
+  moca_score: number | null
+  domain_scores: Record<string, number>
+  top_concerns: string[]
+  recommendations: string[]
+  next_assessment_suggestion: string
+  disclaimer: string
 }
 
 const statusConfig: Record<string, { text: string; color: string }> = {
@@ -60,13 +75,24 @@ function buildDomainScores(result?: AssessmentResult): DomainScores {
     executive: 0,
   }
   if (!result?.domain_scores) return fallback
+  
+  const convertScore = (value: number | undefined): number => {
+    const num = Number(value ?? 0)
+    // 如果值在 0-1 范围内（概率值），转换为 0-10 的分数
+    // 如果值 > 1，认为已经是 0-10 范围的分数，直接使用
+    if (num >= 0 && num <= 1) {
+      return Math.round(num * 10 * 10) / 10
+    }
+    return Math.round(num * 10) / 10
+  }
+  
   return {
-    memory: Number(result.domain_scores.memory ?? 0),
-    orientation: Number(result.domain_scores.orientation ?? 0),
-    language: Number(result.domain_scores.language ?? 0),
-    attention: Number(result.domain_scores.attention ?? 0),
-    visuospatial: Number(result.domain_scores.visuospatial ?? 0),
-    executive: Number(result.domain_scores.executive ?? 0),
+    memory: convertScore(result.domain_scores.memory),
+    orientation: convertScore(result.domain_scores.orientation),
+    language: convertScore(result.domain_scores.language),
+    attention: convertScore(result.domain_scores.attention),
+    visuospatial: convertScore(result.domain_scores.visuospatial),
+    executive: convertScore(result.domain_scores.executive),
   }
 }
 
@@ -85,7 +111,7 @@ function mocaBand(score: number): string {
 export default function AssessmentDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
-  const user = useAuthStore((state) => state.user)
+  const user = getUserFromStorage()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -148,7 +174,7 @@ export default function AssessmentDetailPage() {
     try {
       setFamilyReportLoading(true)
       const payload = await getFamilyReadableReport(Number(sessionId))
-      setFamilyReport(payload as FamilyReportData)
+      setFamilyReport(payload)
       setFamilyReportOpen(true)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '获取家属报告失败')
@@ -160,7 +186,7 @@ export default function AssessmentDetailPage() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '120px 0' }}>
-        <Spin size="large" tip="正在加载评估报告..." />
+        <Spin size="large" />
       </div>
     )
   }
@@ -250,10 +276,10 @@ export default function AssessmentDetailPage() {
 
       {result && (
         <>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} lg={8}>
-              <Card className="mg-panel-card">
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Row gutter={[16, 16]} align="stretch">
+            <Col xs={24} lg={12}>
+              <Card className="mg-panel-card" style={{ height: '100%' }}>
+                <Space direction="vertical" size={12} style={{ width: '100%', flex: 1 }}>
                   <div>
                     <Text type="secondary">综合风险评级</Text>
                     <div style={{ marginTop: 8 }}>
@@ -277,9 +303,9 @@ export default function AssessmentDetailPage() {
               </Card>
             </Col>
 
-            <Col xs={24} lg={16}>
-              <Card className="mg-panel-card" title="风险概率分布">
-                <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Col xs={24} lg={12}>
+              <Card className="mg-panel-card" title="风险概率分布" style={{ height: '100%' }}>
+                <Space direction="vertical" style={{ width: '100%', flex: 1 }} size={16}>
                   <div>
                     <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                       <Text>认知正常（NC）</Text>
@@ -355,31 +381,102 @@ export default function AssessmentDetailPage() {
         open={familyReportOpen}
         onCancel={() => setFamilyReportOpen(false)}
         footer={null}
-        width={720}
+        width={800}
+        bodyStyle={{ padding: 0 }}
       >
         {!familyReport ? (
-          <Spin />
+          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+            <Spin size="large" />
+          </div>
         ) : (
-          <Space direction="vertical" style={{ width: '100%' }} size={12}>
-            <Alert type="info" showIcon message={familyReport.summary} />
-            <Paragraph>{familyReport.plain_interpretation}</Paragraph>
-            <Text strong>风险变化：{familyReport.risk_change || 'unknown'}</Text>
-            <Text strong>建议下次复评：{familyReport.next_reassessment_date || '-'}</Text>
-            <Divider />
-            <Text strong>日常建议</Text>
-            {familyReport.daily_tips.map((item, index) => (
-              <Paragraph key={`tip-${index}`} style={{ marginBottom: 4 }}>
-                {index + 1}. {item}
-              </Paragraph>
-            ))}
-            <Divider />
-            <Text strong>出现以下信号请及时就医</Text>
-            {familyReport.warning_signs.map((item, index) => (
-              <Paragraph key={`warn-${index}`} style={{ marginBottom: 4 }}>
-                {index + 1}. {item}
-              </Paragraph>
-            ))}
-          </Space>
+          <div style={{ padding: 24 }}>
+            <Card className="mg-panel-card" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                  <Title level={4} style={{ marginBottom: 8 }}>{familyReport.elder_name} 的认知评估报告</Title>
+                  <Text type="secondary">评估日期：{familyReport.assessment_date}</Text>
+                </div>
+                <RiskBadge riskLevel={familyReport.risk_level as 'normal' | 'mild_risk' | 'moderate_risk' | 'high_risk'} size="large" />
+              </div>
+              <Divider />
+              <div style={{ marginBottom: 12 }}>
+                <Text strong>评估结果：</Text>
+                <Paragraph style={{ margin: '4px 0 0 0' }}>{familyReport.risk_level_description}</Paragraph>
+              </div>
+              {familyReport.mmse_score !== null && (
+                <div>
+                  <Text strong>MMSE 评分：</Text>
+                  <Text style={{ fontSize: 20, fontWeight: 600, color: '#1677ff' }}>{familyReport.mmse_score} / 30</Text>
+                </div>
+              )}
+            </Card>
+
+            <Card className="mg-panel-card" title="当前主要关注事项" style={{ marginBottom: 16 }}>
+              {familyReport.top_concerns.length > 0 ? (
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {familyReport.top_concerns.map((concern, index) => (
+                    <li key={`concern-${index}`} style={{ marginBottom: 8 }}>
+                      <Text type="warning">{concern}</Text>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Text type="success">暂无明显异常</Text>
+              )}
+            </Card>
+
+            <Card className="mg-panel-card" title="医生嘱咐与建议" style={{ marginBottom: 16 }}>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {familyReport.recommendations.map((recommendation, index) => (
+                  <li key={`rec-${index}`} style={{ marginBottom: 12 }}>
+                    <Text>{recommendation}</Text>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+
+            <Card className="mg-panel-card" title="认知能力分项得分" style={{ marginBottom: 16 }}>
+              <Table
+                size="small"
+                pagination={false}
+                rowKey="key"
+                dataSource={[
+                  { key: 'memory', label: '记忆力', score: familyReport.domain_scores.memory || 0 },
+                  { key: 'attention', label: '注意力', score: familyReport.domain_scores.attention || 0 },
+                  { key: 'orientation', label: '定向力', score: familyReport.domain_scores.orientation || 0 },
+                  { key: 'language', label: '语言能力', score: familyReport.domain_scores.language || 0 },
+                  { key: 'executive', label: '执行功能', score: familyReport.domain_scores.executive || 0 },
+                ]}
+                columns={[
+                  { title: '认知领域', dataIndex: 'label', key: 'label', width: '50%' },
+                  { 
+                    title: '得分', 
+                    dataIndex: 'score', 
+                    key: 'score', 
+                    align: 'right',
+                    render: (score: number) => (
+                      <span style={{ fontWeight: 600, color: score >= 20 ? '#16a34a' : score >= 10 ? '#d97706' : '#dc2626' }}>
+                        {score}
+                      </span>
+                    )
+                  },
+                ]}
+              />
+            </Card>
+
+            <Card className="mg-panel-card" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text strong>下次评估建议：</Text>
+                <Text type="secondary">{familyReport.next_assessment_suggestion}</Text>
+              </div>
+            </Card>
+
+            <Card className="mg-panel-card" type="inner">
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                ⚠️ {familyReport.disclaimer}
+              </Text>
+            </Card>
+          </div>
         )}
       </Modal>
     </div>

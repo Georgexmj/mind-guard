@@ -99,7 +99,7 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <Card className="mg-panel-card" bodyStyle={{ padding: '14px 18px' }}>
+      <Card className="mg-panel-card" styles={{ body: { padding: '14px 18px' } }}>
         <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
           <Space>
             <Badge count={unreadCount} overflowCount={99}>

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Avatar,
   Button,
@@ -78,7 +78,7 @@ export default function EldersPage() {
   const fetchElders = useCallback(async () => {
     setLoading(true)
     try {
-      const rows = await getElders({ page: 1, page_size: 200, community_id: communityFilter })
+      const rows = await getElders({ page: 1, page_size: 100, community_id: communityFilter })
       const normalized = (rows || []) as ElderRow[]
       setElders(normalized)
     } catch (error) {
@@ -102,7 +102,7 @@ export default function EldersPage() {
     setRelationLoading(true)
     try {
       const [familyRows, relationRows] = await Promise.all([
-        getFamilies({ page: 1, page_size: 500 }),
+        getFamilies({ page: 1, page_size: 100 }),
         getFamilyRelationships(),
       ])
       setFamilies(Array.isArray(familyRows) ? familyRows : [])
@@ -175,19 +175,30 @@ export default function EldersPage() {
   const handleCreateRelation = async () => {
     try {
       const values = await bindForm.validateFields()
-      await createFamilyRelationship({
-        elder_id: values.elder_id,
-        family_id: values.family_id,
-        relationship: values.relationship,
-        notify_level: values.notify_level ?? 1,
-        is_primary: Boolean(values.is_primary),
-      })
+      console.log('Form values:', values)
+      const data = {
+        elder_id: parseInt(values.elder_id as string, 10),
+        family_id: parseInt(values.family_id as string, 10),
+        relationship: String(values.relationship),
+        notify_level: parseInt(values.notify_level as string, 10) || 1,
+        is_primary: true,
+      }
+      console.log('Sending data:', data)
+      await createFamilyRelationship(data)
       message.success('绑定成功')
       bindForm.resetFields()
       fetchRelationData()
-    } catch (error) {
-      if (error instanceof Error) {
+    } catch (error: any) {
+      console.error('Bind error:', error)
+      // 处理 Axios 错误
+      if (error.response) {
+        // 服务器返回了错误响应
+        const errorMsg = error.response.data?.detail || error.response.data?.message || '绑定失败'
+        message.error(errorMsg)
+      } else if (error instanceof Error) {
         message.error(error.message)
+      } else {
+        message.error('绑定失败')
       }
     }
   }
@@ -302,7 +313,7 @@ export default function EldersPage() {
         </div>
       </div>
 
-      <Card className="mg-panel-card" style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} bodyStyle={{ padding: '20px 24px' }}>
+      <Card className="mg-panel-card" style={{ borderRadius: 12, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }} styles={{ body: { padding: '20px 24px' } }}>
         <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
           <Col xs={24} sm={8} md={6}>
             <Input
@@ -374,8 +385,11 @@ export default function EldersPage() {
                 options={families.map((item) => ({ label: item.name, value: item.id }))}
               />
             </Form.Item>
-            <Form.Item name="relationship" initialValue="daughter" rules={[{ required: true, message: '请输入关系' }]}>
-              <Input style={{ width: 150 }} placeholder="daughter/son/spouse" />
+            <Form.Item name="relationship" initialValue="daughter" rules={[{ required: true, message: '请选择关系' }]}>
+              <Select style={{ width: 150 }} placeholder="选择关系" options={[
+                { label: '儿子', value: 'son' },
+                { label: '女儿', value: 'daughter' },
+              ]} />
             </Form.Item>
             <Form.Item name="notify_level" initialValue={1}>
               <Select
@@ -388,7 +402,7 @@ export default function EldersPage() {
               />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" onClick={handleCreateRelation}>新增绑定</Button>
+              <Button type="primary" onClick={handleCreateRelation} style={{ backgroundColor: '#ff7a45', borderColor: '#ff7a45' }}>新增绑定</Button>
             </Form.Item>
           </Form>
         </Card>

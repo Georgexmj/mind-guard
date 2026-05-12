@@ -6,7 +6,13 @@ from typing import List, Optional, Sequence, Tuple
 import os
 import ctypes
 
-import faiss
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    faiss = None
+    FAISS_AVAILABLE = False
+
 import numpy as np
 from sqlalchemy.orm import Session
 

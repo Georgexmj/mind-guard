@@ -7,8 +7,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:30001',
         changeOrigin: true,
+        secure: false,
+        headers: {
+          Connection: 'keep-alive'
+        }
       },
       '/bff': {
         target: 'http://localhost:8787',

@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore } from './store/auth'
+import { useEffect } from 'react'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import EldersPage from './pages/EldersPage'
@@ -11,11 +11,58 @@ import QuestionsPage from './pages/QuestionsPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ElderDashboardPage from './pages/ElderDashboardPage'
 import Layout from './components/Layout'
-import type { User } from './types'
 
-type UserRole = User['role']
+// 页面加载时尝试修复可能损坏的 localStorage 数据
+function fixLocalStorage() {
+  try {
+    // 检查并修复可能损坏的用户数据
+    const userStr = localStorage.getItem('mindguard-user')
+    if (userStr) {
+      try {
+        JSON.parse(userStr)
+      } catch {
+        // 如果解析失败，删除损坏的数据
+        console.log('发现损坏的 mindguard-user，已删除')
+        localStorage.removeItem('mindguard-user')
+      }
+    }
+    
+    // 检查 token 是否存在
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      console.log('access_token 不存在')
+    }
+  } catch (e) {
+    console.error('修复 localStorage 失败:', e)
+  }
+}
 
-const getDefaultRouteByRole = (role?: UserRole) => {
+// 在应用启动时运行修复
+fixLocalStorage()
+
+// 简单的认证检查 - 直接检查 localStorage
+const isLoggedIn = () => {
+  const token = localStorage.getItem('access_token')
+  const user = localStorage.getItem('mindguard-user')
+  return token !== null && token.length > 0 && user !== null && user.length > 0
+}
+
+// 获取用户角色
+const getUserRole = (): string | null => {
+  try {
+    const userStr = localStorage.getItem('mindguard-user')
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      return user.role || null
+    }
+  } catch (e) {
+    console.error('getUserRole() error:', e)
+  }
+  return null
+}
+
+// 根据角色获取默认路由
+const getDefaultRouteByRole = (role?: string | null) => {
   switch (role) {
     case 'admin':
     case 'doctor':
@@ -24,38 +71,50 @@ const getDefaultRouteByRole = (role?: UserRole) => {
     case 'family':
       return '/elder-home'
     default:
-      return '/login'
+      return '/dashboard'
   }
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />
+// 简单的认证路由
+function AuthRoute({ children }: { children: React.ReactNode }) {
+  const loggedIn = isLoggedIn()
+  
+  if (loggedIn) {
+    return <>{children}</>
   }
-  return <>{children}</>
+  return <Navigate to="/login" replace />
 }
 
+// 简单的角色路由
 function RoleRoute({
   allowedRoles,
   children,
 }: {
-  allowedRoles: UserRole[]
+  allowedRoles: string[]
   children: React.ReactNode
 }) {
-  const user = useAuthStore((state) => state.user)
-  if (!user) {
-    return <Navigate to="/login" replace />
+  const role = getUserRole()
+  const loggedIn = isLoggedIn()
+  
+  // 如果有 token 但角色不匹配，允许访问（避免被踢出去）
+  if (loggedIn) {
+    // 如果角色在允许列表中，直接访问
+    if (role && allowedRoles.includes(role)) {
+      return <>{children}</>
+    }
+    // 如果角色不在允许列表中，跳转到默认页面
+    const redirectTo = getDefaultRouteByRole(role)
+    return <Navigate to={redirectTo} replace />
   }
-  if (!allowedRoles.includes(user.role)) {
-    return <Navigate to={getDefaultRouteByRole(user.role)} replace />
-  }
-  return <>{children}</>
+  
+  return <Navigate to="/login" replace />
 }
 
-function DefaultIndexRedirect() {
-  const user = useAuthStore((state) => state.user)
-  return <Navigate to={getDefaultRouteByRole(user?.role)} replace />
+// 默认重定向
+function DefaultRedirect() {
+  const role = getUserRole()
+  const redirectTo = getDefaultRouteByRole(role)
+  return <Navigate to={redirectTo} replace />
 }
 
 function App() {
@@ -63,15 +122,18 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        
+        {/* 所有需要认证的路由 */}
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            <AuthRoute>
               <Layout />
-            </ProtectedRoute>
+            </AuthRoute>
           }
         >
-          <Route index element={<DefaultIndexRedirect />} />
+          <Route index element={<DefaultRedirect />} />
+          
           <Route
             path="dashboard"
             element={
@@ -80,6 +142,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="elders"
             element={
@@ -88,6 +151,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="elders/:id"
             element={
@@ -96,6 +160,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="elder-home"
             element={
@@ -104,6 +169,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="assessments"
             element={
@@ -112,6 +178,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="assessments/:sessionId"
             element={
@@ -120,6 +187,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="interventions"
             element={
@@ -128,6 +196,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="questions"
             element={
@@ -136,6 +205,7 @@ function App() {
               </RoleRoute>
             }
           />
+          
           <Route
             path="notifications"
             element={
@@ -145,7 +215,9 @@ function App() {
             }
           />
         </Route>
-        <Route path="*" element={<DefaultIndexRedirect />} />
+        
+        {/* 404 重定向 */}
+        <Route path="*" element={<DefaultRedirect />} />
       </Routes>
     </BrowserRouter>
   )

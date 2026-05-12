@@ -2,7 +2,7 @@ import { Tag } from 'antd'
 import { CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons'
 
 interface RiskBadgeProps {
-  riskLevel: 'normal' | 'mild_risk' | 'high_risk'
+  riskLevel: 'normal' | 'mild_risk' | 'moderate_risk' | 'high_risk'
   size?: 'default' | 'large'
 }
 
@@ -18,6 +18,12 @@ const riskConfig = {
     icon: <WarningOutlined />,
     text: '轻度风险',
     hexColor: '#d97706',
+  },
+  moderate_risk: {
+    color: 'warning',
+    icon: <WarningOutlined />,
+    text: '中度风险',
+    hexColor: '#ea580c',
   },
   high_risk: {
     color: 'error',

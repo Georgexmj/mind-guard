@@ -9,6 +9,8 @@ export interface User {
   birth_date?: string
   gender?: 'male' | 'female'
   education_years?: number
+  last_assessment?: string
+  risk_level?: 'normal' | 'mild_risk' | 'high_risk'
 }
 
 export interface Community {
@@ -43,7 +45,7 @@ export interface DomainScores {
 export interface AssessmentResult {
   id: number
   session_id: number
-  risk_level: 'normal' | 'mild_risk' | 'high_risk'
+  risk_level: 'normal' | 'mild_risk' | 'moderate_risk' | 'high_risk'
   nc_probability: number
   mci_probability: number
   ad_probability: number
@@ -182,16 +184,17 @@ export interface AssessmentTrend {
 }
 
 export interface FamilyReadableReport {
-  elder_id: number
-  session_id: number
-  assessed_at: string
+  elder_name: string
+  assessment_date: string
   risk_level: string
-  risk_change: 'improved' | 'stable' | 'worsened' | 'unknown'
-  next_reassessment_date?: string
-  summary: string
-  plain_interpretation: string
-  daily_tips: string[]
-  warning_signs: string[]
+  risk_level_description: string
+  mmse_score: number | null
+  moca_score: number | null
+  domain_scores: Record<string, number>
+  top_concerns: string[]
+  recommendations: string[]
+  next_assessment_suggestion: string
+  disclaimer: string
 }
 
 export interface FamilyRelationship {
